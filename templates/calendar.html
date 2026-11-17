@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - NTHU Campus Assistant{% endblock %}
+
+{% block content %}
+<div class="cal-bar">
+  <h1>{{ label }}</h1>
+  <div class="cal-nav">
+    <a class="btn small" href="{{ url_for('calendar_page', month=prev_month) }}">&larr; Prev</a>
+    {% if not in_this_month %}
+      <a class="btn small" href="{{ url_for('calendar_page') }}">Today</a>
+    {% endif %}
+    <a class="btn small" href="{{ url_for('calendar_page', month=next_month) }}">Next &rarr;</a>
+    <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ Add event</button>
+  </div>
+</div>
+
+<div class="cal-wrap">
+  <div class="cal">
+    {% for name in weekdays %}
+      <div class="cal-head">{{ name }}</div>
+    {% endfor %}
+
+    {% for week in weeks %}
+      {% for cell in week %}
+        {% if cell %}
+          <div class="cal-cell {{ 'today' if cell.is_today }}">
+            <div class="cal-top">
+              <span class="cal-day">{{ cell.day }}</span>
+              <button class="cal-add" type="button" data-add data-date="{{ cell.iso }}"
+                      aria-label="Add event on {{ cell.iso }}">+</button>
+            </div>
+            {% for ev in cell.events %}
+              {# data-* mang dữ liệu sự kiện cho JavaScript; Jinja tự escape nên an toàn #}
+              <button class="pill" type="button" data-event
+                      data-id="{{ ev.id }}" data-title="{{ ev.title }}" data-date="{{ ev.date }}"
+                      data-time="{{ ev.time }}" data-description="{{ ev.description }}"
+                      data-url="{{ ev.source_url }}">
+                {% if ev.time %}<span class="pill-time">{{ ev.time }}</span>{% endif %}{{ ev.title }}
+              </button>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cal-cell blank"></div>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+{# Hộp thoại thêm / sửa sự kiện (thẻ <dialog> có sẵn của HTML) #}
+<dialog id="event-dialog">
+  <form class="dialog-form">
+    <h2>Add event</h2>
+    <div class="field">
+      <label for="ev-title">Title</label>
+      <input id="ev-title" name="title" maxlength="200" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="ev-date">Date</label>
+        <input id="ev-date" name="date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="ev-time">Time <small>(optional)</small></label>
+        <input id="ev-time" name="time" type="time">
+      </div>
+    </div>
+    <div class="field">
+      <label for="ev-description">Description <small>(optional)</small></label>
+      <textarea id="ev-description" name="description" rows="3" maxlength="1000"></textarea>
+    </div>
+    <p class="source-line" hidden><a id="ev-source" target="_blank" rel="noopener">Open original announcement</a></p>
+    <p class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" data-cancel>Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

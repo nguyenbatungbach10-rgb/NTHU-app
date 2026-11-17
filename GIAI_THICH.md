@@ -1,5 +1,8 @@
 # Giải thích code (để hiểu và trả lời TA)
 
+> File này giải thích phần **Announcements**. Phần đăng ký/đăng nhập, database SQLite và
+> Calendar nằm trong `GIAI_THICH_ACCOUNT_CALENDAR.md`.
+
 ## 1. Chạy thử trên Windows (PowerShell, trong thư mục NTHU-app)
 
 ```
@@ -55,7 +58,7 @@ Người dùng mở `/announcements?lang=en&q=pruning&page=1`:
 
 | File | Làm gì |
 |---|---|
-| `app.py` | Khai báo các route (URL nào chạy hàm nào). Không chứa logic xử lý dữ liệu, chỉ nối các phần với nhau. |
+| `app.py` | Khai báo các route (URL nào chạy hàm nào), đăng nhập và bảo mật. Logic dữ liệu nằm ở các file khác, `app.py` chỉ nối chúng lại. |
 | `nthu_api.py` | Toàn bộ logic Python: gọi API, dàn phẳng JSON, lọc, phân trang, lấy danh sách office. Không import Flask nên test độc lập được. |
 | `templates/base.html` | Khung chung (thanh menu, footer). Các trang khác `{% extends "base.html" %}` và chỉ điền phần `{% block content %}`. |
 | `templates/announcements.html` | Form lọc + danh sách + nút chuyển trang. |

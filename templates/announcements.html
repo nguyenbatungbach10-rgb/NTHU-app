@@ -42,8 +42,10 @@
 
 {% if items %}
   <ul class="list">
+    {# Sau khi đăng nhập xong sẽ quay lại đúng trang (và bộ lọc) này #}
+    {% set login_url = url_for('login', next=request.full_path.rstrip('?')) %}
     {% for item in items %}
-      {{ announcement(item) }}
+      {{ announcement(item, logged_in=current_user is not none, login_url=login_url) }}
     {% endfor %}
   </ul>
 

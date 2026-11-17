@@ -8,48 +8,60 @@ TA allows AI-written code as long as we understand it well enough to explain
 it and to build the core features ourselves. When you write code, explain it
 in simple words (the owner is a beginner), so we can answer TA questions.
 
-## Team and modules
-- Bach: Announcements & Deadline Tracker (NTHU Data API, JSON, Jinja2)
-- Manh: database (SQLite), sign-up/login, Calendar API
-- Nhan: base layout, dashboard, Personal Calendar UI
-
 ## Features
-1. Personal Calendar & General Schedule
-2. Study planning (not built yet)
-3. Credit & GPA tracking (not built yet)
-4. Campus Announcements & Deadline Tracker: fetch from the NTHU Data API,
+1. Personal Calendar & General Schedule - DONE (month view, add/edit/delete).
+2. Study planning - not built yet.
+3. Credit & GPA tracking - not built yet.
+4. Campus Announcements & Deadline Tracker - fetch from the NTHU Data API,
    filter by office, keyword, language and category (Scholarship / Dorm /
    Careers / Registration / Events / Other, guessed from the title by
-   classify()), latest 5 on the home page, save important deadlines to the
-   Calendar (contract in CALENDAR_API.md).
+   classify()), latest 5 on the home page, "Save to Calendar" button.
+   Reading the real deadline from the title is a possible next step.
+Accounts: sign-up / log-in / log-out with sessions.
 
 ## Stack
-Flask, Jinja2 template inheritance, requests, plain HTML/CSS (purple theme).
-SQLite and session login are Manh's part (not in this repo yet).
+Flask, Jinja2 template inheritance + macros, requests, sqlite3 (stdlib, no ORM),
+plain HTML/CSS (purple theme), a little vanilla JavaScript (static/app.js).
+Password hashing: werkzeug.security. No other packages without asking the team.
+
+## Architecture rules (keep these)
+- Python decides, JavaScript only displays. All validation lives in Python.
+- SQL only in db.py, always parameterized (?). Every query on events includes
+  user_id so users can never touch each other's data.
+- Every POST/PUT/DELETE needs the CSRF token (form field csrf_token or header
+  X-CSRF-Token). API errors are JSON {"error": "..."}.
+- Never mutate the shared announcements cache; use copies (see mark_saved()).
 
 ## Folder structure
-app.py                  Flask routes
-nthu_api.py             fetch / normalize / filter announcements (pure Python)
+app.py                  routes, login/session, CSRF
+nthu_api.py             fetch / normalize / classify / filter announcements
+calendar_logic.py       validate_event, month grid, mark_saved (pure Python)
+db.py                   SQLite: users and events tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
-CALENDAR_API.md         contract for the Calendar API (Save to Calendar button)
-templates/              base.html, home.html, announcements.html,
+CALENDAR_API.md         the Calendar API contract (implemented)
+GIAI_THICH.md           explanation of the announcements part (Vietnamese)
+GIAI_THICH_ACCOUNT_CALENDAR.md  explanation of accounts, database, calendar
+templates/              base, home, announcements, calendar, login, signup,
                         _macros.html (Jinja macro shared by home and announcements)
-static/style.css        purple theme
-tests/                  pytest: test_nthu_api.py (logic), test_app.py (routes)
+static/                 style.css (purple theme), app.js
+tests/                  pytest (57 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
 department, and articles: [{title, link, date}]. nthu_api.normalize() flattens
-every article into {title, link, date, office, language}, newest first.
+every article into {title, link, date, office, language, category}, newest first.
 A real sample is in tests/api_sample.json.
 
 ## Run
 python -m venv venv
-venv\Scripts\Activate.ps1     (Windows PowerShell)
+venv\Scripts\Activate.ps1     (Windows PowerShell; first run
+                               Set-ExecutionPolicy -Scope Process Bypass)
 pip install -r requirements.txt
 python app.py                 -> http://127.0.0.1:5000
+python -m pytest              -> all tests
+The database is created automatically in instance/app.db (not committed).
+Before deploying, set the SECRET_KEY environment variable.
 
 ## Conventions
-- Keep logic in Python files; JavaScript only for small UI behaviour.
-- Keep functions short, with a one-line docstring.
-- No new packages without asking the team.
+- Keep functions short, with a one-line docstring (Vietnamese or English).
+- Add a test for every new behaviour, especially security-related ones.

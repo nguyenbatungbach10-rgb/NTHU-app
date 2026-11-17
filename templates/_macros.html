@@ -1,7 +1,12 @@
 {# Macro = "hàm" của Jinja. Dùng chung một thẻ thông báo cho trang chủ và trang Announcements.
-   Dùng:  {% from "_macros.html" import announcement %}  rồi  {{ announcement(item) }} #}
+   Dùng:  {% from "_macros.html" import announcement %}  rồi  {{ announcement(item) }}
 
-{% macro announcement(item, show_save=true) %}
+   Tham số:
+     show_save  hiện nút "Save to Calendar" hay không
+     logged_in  người dùng đã đăng nhập chưa (macro không tự thấy biến của trang gọi nó)
+     login_url  link tới trang đăng nhập (kèm ?next=... để quay lại đây) #}
+
+{% macro announcement(item, show_save=true, logged_in=false, login_url="") %}
 <li class="item">
   <div class="meta">
     <span class="meta-left">
@@ -20,9 +25,18 @@
     {% endif %}
   </h3>
   {% if show_save %}
-    {# Sau này nối với Calendar API của Manh để lưu deadline (xem CALENDAR_API.md) #}
-    <button class="btn small" type="button" disabled
-            title="Will connect to the Calendar API">Save to Calendar</button>
+    {% if not item.date %}
+      <button class="btn small" type="button" disabled title="This announcement has no date">Save to Calendar</button>
+    {% elif not logged_in %}
+      <a class="btn small" href="{{ login_url }}">Log in to save</a>
+    {% elif item.saved %}
+      <button class="btn small" type="button" disabled>Saved &#10003;</button>
+    {% else %}
+      {# static/app.js gửi các data-* này tới POST /api/events #}
+      <button class="btn small" type="button" data-save
+              data-title="{{ item.event_title }}" data-date="{{ item.date }}"
+              data-office="{{ item.office }}" data-url="{{ item.link }}">Save to Calendar</button>
+    {% endif %}
   {% endif %}
 </li>
 {% endmacro %}

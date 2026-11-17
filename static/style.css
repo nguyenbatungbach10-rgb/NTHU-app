@@ -158,3 +158,75 @@ h1 { margin: 0 0 16px; color: var(--purple-dark); }
 .latest { margin-top: 36px; }
 .latest-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
 .latest-head h2 { margin: 0; color: var(--purple-dark); font-size: 1.25rem; }
+
+/* ---------- tài khoản, form, thông báo flash ---------- */
+.topbar nav { align-items: center; }
+.userbox { display: flex; align-items: center; gap: 10px; margin-left: 10px; color: #fff; font-size: 0.9rem; }
+.userbox a { color: #fff; }
+.pill-link { padding: 5px 12px; border-radius: 999px; background: #fff; color: var(--purple-dark) !important; text-decoration: none; font-weight: 600; }
+form.inline { display: inline; }
+.linklike { background: none; border: 0; color: #fff; text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+
+.flash {
+  margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+  background: var(--purple-soft); color: var(--purple-dark); font-size: 0.92rem;
+}
+.flash.error { background: #fdecec; color: #8a1f1f; border: 1px solid #f3c2c2; }
+
+.form-card {
+  max-width: 420px; margin: 24px auto; padding: 26px;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+}
+.form-card h1 { font-size: 1.5rem; }
+.form-note { color: var(--muted); font-size: 0.9rem; margin: 16px 0 0; }
+
+.field { display: grid; gap: 6px; margin-bottom: 14px; flex: 1; }
+.field label { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
+.field small { font-weight: 400; color: var(--muted); }
+.field input, .field textarea {
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
+  font: inherit; color: var(--ink); background: #fff; width: 100%;
+}
+.field input:focus, .field textarea:focus { outline: 2px solid var(--purple); outline-offset: 1px; }
+.field-row { display: flex; gap: 12px; }
+
+/* ---------- Calendar ---------- */
+.cal-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.cal-bar h1 { margin: 0; }
+.cal-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.cal-nav .btn.small { margin-top: 0; }
+
+.cal-wrap { overflow-x: auto; }
+.cal {
+  display: grid; grid-template-columns: repeat(7, minmax(108px, 1fr)); min-width: 770px;
+  gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+.cal-head { background: var(--purple-soft); padding: 8px; text-align: center; font-weight: 600; font-size: 0.85rem; color: var(--purple-dark); }
+.cal-cell { background: #fff; min-height: 104px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-cell.blank { background: #f6f2fb; }
+.cal-cell.today { background: #fbf7ff; box-shadow: inset 0 0 0 2px var(--purple); }
+.cal-top { display: flex; justify-content: space-between; align-items: center; }
+.cal-day { font-size: 0.85rem; color: var(--muted); }
+.today .cal-day { color: var(--purple-dark); font-weight: 700; }
+.cal-add { border: 0; background: transparent; color: var(--purple); font-size: 1.1rem; line-height: 1; padding: 2px 7px; border-radius: 6px; cursor: pointer; }
+.cal-add:hover { background: var(--purple-soft); }
+.pill {
+  text-align: left; border: 0; background: var(--purple); color: #fff; border-radius: 6px;
+  padding: 3px 6px; font-size: 0.78rem; cursor: pointer; width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pill:hover { background: var(--purple-dark); }
+.pill-time { opacity: 0.85; margin-right: 5px; font-variant-numeric: tabular-nums; }
+
+dialog { border: 0; border-radius: 14px; padding: 24px; width: min(440px, 92vw); color: var(--ink); }
+dialog::backdrop { background: rgba(36, 27, 51, 0.45); }
+.dialog-form h2 { margin: 0 0 16px; color: var(--purple-dark); }
+.dialog-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dialog-actions .spacer { flex: 1; }
+.form-error { color: #8a1f1f; font-size: 0.88rem; min-height: 1.2em; margin: 0 0 6px; }
+.source-line { margin: 0 0 8px; font-size: 0.88rem; }
+.btn.ghost { background: transparent; color: var(--purple); box-shadow: inset 0 0 0 1px var(--line); }
+.btn.ghost:hover { background: var(--purple-soft); }
+.btn.danger { background: #b3261e; }
+.btn.danger:hover { background: #8c1d18; }
+.btn[hidden], .pill[hidden] { display: none; }

@@ -6,14 +6,18 @@
   <h1>Campus &amp; Daily Life Assistant</h1>
   <p>One place for NTHU students to plan their days, track their studies and
      never miss an announcement or deadline.</p>
-  <a class="btn" href="{{ url_for('announcements') }}">View announcements</a>
+  {% if current_user %}
+    <a class="btn" href="{{ url_for('calendar_page') }}">Open my calendar</a>
+  {% else %}
+    <a class="btn" href="{{ url_for('signup') }}">Get started</a>
+  {% endif %}
 </section>
 
 <section class="grid">
   <article class="card">
     <h3>Personal Calendar</h3>
     <p>Classes and events in one schedule.</p>
-    <span class="badge">Coming soon</span>
+    <a href="{{ url_for('calendar_page') }}">Open &rarr;</a>
   </article>
   <article class="card">
     <h3>Study &amp; GPA Tracking</h3>
@@ -25,6 +29,31 @@
     <p>Scholarships, registration and dorm deadlines, filtered for you.</p>
     <a href="{{ url_for('announcements') }}">Open &rarr;</a>
   </article>
+</section>
+
+<section class="latest">
+  <div class="latest-head">
+    <h2>Your upcoming events</h2>
+    {% if current_user %}<a href="{{ url_for('calendar_page') }}">Open calendar &rarr;</a>{% endif %}
+  </div>
+  {% if not current_user %}
+    <p class="empty"><a href="{{ url_for('login') }}">Log in</a> or
+       <a href="{{ url_for('signup') }}">sign up</a> to see your calendar here.</p>
+  {% elif upcoming %}
+    <ul class="list">
+      {% for ev in upcoming %}
+        <li class="item">
+          <div class="meta">
+            <span class="office">{{ ev.date }}{% if ev.time %} &middot; {{ ev.time }}{% endif %}</span>
+          </div>
+          <h3><a href="{{ url_for('calendar_page', month=ev.date[:7]) }}">{{ ev.title }}</a></h3>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">No upcoming events. <a href="{{ url_for('calendar_page') }}">Add one</a>
+       or save a deadline from the announcements.</p>
+  {% endif %}
 </section>
 
 <section class="latest">
