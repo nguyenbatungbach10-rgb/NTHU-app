@@ -1,0 +1,28 @@
+{# Macro = "hàm" của Jinja. Dùng chung một thẻ thông báo cho trang chủ và trang Announcements.
+   Dùng:  {% from "_macros.html" import announcement %}  rồi  {{ announcement(item) }} #}
+
+{% macro announcement(item, show_save=true) %}
+<li class="item">
+  <div class="meta">
+    <span class="meta-left">
+      <span class="office">{{ item.office }}</span>
+      {% if item.category and item.category != 'Other' %}
+        <span class="chip">{{ item.category }}</span>
+      {% endif %}
+    </span>
+    <span class="date">{{ item.date }}</span>
+  </div>
+  <h3>
+    {% if item.link %}
+      <a href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+    {% else %}
+      {{ item.title }}
+    {% endif %}
+  </h3>
+  {% if show_save %}
+    {# Sau này nối với Calendar API của Manh để lưu deadline (xem CALENDAR_API.md) #}
+    <button class="btn small" type="button" disabled
+            title="Will connect to the Calendar API">Save to Calendar</button>
+  {% endif %}
+</li>
+{% endmacro %}

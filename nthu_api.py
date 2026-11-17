@@ -3,9 +3,11 @@
 File này chỉ chứa logic Python (không có Flask) để dễ test và dễ giải thích:
     fetch_announcements()  -> gọi API, trả về (danh sách, thông báo lỗi)
     normalize()            -> "dàn phẳng" JSON thành danh sách thông báo
-    filter_announcements() -> lọc theo office, từ khóa, ngôn ngữ
+    classify()             -> đoán chủ đề (Scholarship, Dorm...) từ tiêu đề
+    filter_announcements() -> lọc theo office, từ khóa, ngôn ngữ, chủ đề
     paginate()             -> cắt danh sách thành từng trang
     list_offices()         -> danh sách office để đổ vào ô chọn
+    category_counts()      -> số thông báo của từng chủ đề
 
 Cấu trúc JSON thật của GET /announcements (mỗi phần tử là MỘT ĐƠN VỊ):
     [
@@ -50,6 +52,36 @@ SAMPLE_ANNOUNCEMENTS = [
 ]
 
 
+# Chủ đề và từ khóa (tiếng Anh + tiếng Hoa). API không có trường chủ đề,
+# nên ta đoán từ tiêu đề. Thứ tự quan trọng: chủ đề nào khớp trước thì được chọn.
+CATEGORY_KEYWORDS = [
+    ("Scholarship", ["scholarship", "fellowship", "獎學金", "助學", "獎助"]),
+    ("Dorm", ["dorm", "housing", "宿舍", "住宿"]),
+    ("Careers", ["career", "internship", "recruit", "hiring",
+                 "徵才", "招募", "實習", "求才", "就業"]),
+    ("Registration", ["registration", "add/drop", "course selection", "enrollment",
+                      "選課", "加退選", "退選", "註冊"]),
+    ("Events", ["event", "lecture", "talk", "workshop", "seminar", "competition",
+                "concert", "exhibition", "festival",
+                "活動", "演講", "講座", "研討", "工作坊", "競賽", "比賽", "展覽", "音樂會"]),
+]
+OTHER = "Other"
+
+
+def classify(title):
+    """Đoán chủ đề của một thông báo từ tiêu đề. Không khớp từ khóa nào -> "Other"."""
+    text = title.lower()  # tiếng Anh không phân biệt hoa/thường
+    for category, words in CATEGORY_KEYWORDS:
+        if any(word in text for word in words):
+            return category
+    return OTHER
+
+
+# Gán chủ đề cho dữ liệu mẫu (định nghĩa SAMPLE_ANNOUNCEMENTS ở trên, classify ở đây)
+for _item in SAMPLE_ANNOUNCEMENTS:
+    _item["category"] = classify(_item["title"])
+
+
 def find_list(data):
     """Lấy danh sách đơn vị từ JSON (list thẳng, hoặc nằm trong một dict)."""
     if isinstance(data, list):
@@ -81,6 +113,7 @@ def normalize(data):
                 "date": article.get("date") or "",
                 "office": office,
                 "language": language,
+                "category": classify(str(article["title"])),
             })
     items.sort(key=lambda a: a["date"], reverse=True)  # ngày dạng ISO nên so sánh chữ là đúng
     return items
@@ -112,14 +145,17 @@ def fetch_announcements():
     return items, None
 
 
-def filter_announcements(items, office="", q="", lang=""):
-    """Lọc theo office (khớp chính xác), từ khóa q (trong tiêu đề hoặc office), ngôn ngữ."""
+def filter_announcements(items, office="", q="", lang="", category=""):
+    """Lọc theo office (khớp chính xác), từ khóa q (trong tiêu đề hoặc office),
+    ngôn ngữ và chủ đề. Tham số nào để trống thì không lọc theo tham số đó."""
     q = q.lower().strip()
     result = []
     for item in items:
         if office and item["office"] != office:
             continue
         if lang and item["language"] != lang:
+            continue
+        if category and item.get("category") != category:
             continue
         if q and q not in item["title"].lower() and q not in item["office"].lower():
             continue
@@ -130,6 +166,16 @@ def filter_announcements(items, office="", q="", lang=""):
 def list_offices(items):
     """Danh sách office không trùng, xếp A-Z."""
     return sorted({item["office"] for item in items})
+
+
+def category_counts(items):
+    """Trả về [(chủ đề, số thông báo), ...] theo thứ tự cố định, bỏ chủ đề có 0 mục."""
+    names = [name for name, _ in CATEGORY_KEYWORDS] + [OTHER]
+    counts = {name: 0 for name in names}
+    for item in items:
+        name = item.get("category", OTHER)
+        counts[name] = counts.get(name, 0) + 1
+    return [(name, counts[name]) for name in names if counts[name]]
 
 
 def paginate(items, page, per_page=PER_PAGE):

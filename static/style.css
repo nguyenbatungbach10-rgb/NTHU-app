@@ -144,3 +144,17 @@ h1 { margin: 0 0 16px; color: var(--purple-dark); }
 }
 .page-info { color: var(--muted); font-size: 0.9rem; }
 .filters select { max-width: 100%; }
+
+.meta-left { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--purple-soft);
+  color: var(--purple-dark);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.latest { margin-top: 36px; }
+.latest-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.latest-head h2 { margin: 0; color: var(--purple-dark); font-size: 1.25rem; }

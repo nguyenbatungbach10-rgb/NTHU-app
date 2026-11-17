@@ -6,6 +6,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from nthu_api import (  # noqa: E402
+    SAMPLE_ANNOUNCEMENTS,
+    category_counts,
+    classify,
     filter_announcements,
     list_offices,
     normalize,
@@ -16,11 +19,11 @@ HERE = os.path.dirname(__file__)
 
 ITEMS = [
     {"title": "Scholarship news", "link": "", "date": "2026-11-20",
-     "office": "Student Affairs", "language": "en"},
+     "office": "Student Affairs", "language": "en", "category": "Scholarship"},
     {"title": "宿舍申請", "link": "", "date": "2026-11-18",
-     "office": "Housing", "language": "zh-tw"},
+     "office": "Housing", "language": "zh-tw", "category": "Dorm"},
     {"title": "Registration reminder", "link": "", "date": "2026-11-10",
-     "office": "Registrar", "language": "en"},
+     "office": "Registrar", "language": "en", "category": "Registration"},
 ]
 
 
@@ -29,6 +32,8 @@ def load_real_sample():
     with open(os.path.join(HERE, "api_sample.json"), encoding="utf-8") as f:
         return json.load(f)
 
+
+# ---------- normalize ----------
 
 def test_normalize_flattens_real_api_sample():
     items = normalize(load_real_sample())
@@ -46,6 +51,13 @@ def test_normalize_keeps_language_per_department():
     english = [a for a in items if a["language"] == "en"]
     assert len(english) == 3
     assert all(a["office"].startswith("總務處") for a in english)
+
+
+def test_normalize_adds_category_to_every_item():
+    items = normalize(load_real_sample())
+    assert all("category" in a for a in items)
+    job = next(a for a in items if "徵才" in a["title"])
+    assert job["category"] == "Careers"
 
 
 def test_normalize_skips_bad_entries():
@@ -67,6 +79,37 @@ def test_normalize_accepts_dict_wrapper():
     assert normalize(data)[0]["office"] == "A"
 
 
+# ---------- classify / category_counts ----------
+
+def test_classify_english_and_chinese():
+    assert classify("Scholarship application opens") == "Scholarship"
+    assert classify("國科會 獎助學金 申請") == "Scholarship"
+    assert classify("宿舍床位申請") == "Dorm"
+    assert classify("115學年度第1學期 加退選 公告") == "Registration"
+    assert classify("Spring concert tickets") == "Events"
+
+
+def test_classify_is_case_insensitive_and_has_default():
+    assert classify("DORM application") == "Dorm"
+    assert classify("Three pruning notice on campus") == "Other"
+
+
+def test_classify_order_matters_careers_before_registration():
+    # "career fair registration" chứa cả "career" và "registration" -> Careers thắng
+    assert classify("Campus career fair registration open") == "Careers"
+
+
+def test_sample_announcements_have_categories():
+    assert all(a["category"] for a in SAMPLE_ANNOUNCEMENTS)
+
+
+def test_category_counts_fixed_order_and_skips_empty():
+    items = ITEMS + [{"title": "x", "office": "O", "language": "en", "category": "Dorm"}]
+    assert category_counts(items) == [("Scholarship", 1), ("Dorm", 2), ("Registration", 1)]
+
+
+# ---------- filter / offices / paginate ----------
+
 def test_filter_by_keyword_is_case_insensitive():
     result = filter_announcements(ITEMS, q="SCHOLAR")
     assert [a["title"] for a in result] == ["Scholarship news"]
@@ -76,6 +119,11 @@ def test_filter_by_office_language_and_keyword():
     assert filter_announcements(ITEMS, office="Housing") == [ITEMS[1]]
     assert filter_announcements(ITEMS, lang="en") == [ITEMS[0], ITEMS[2]]
     assert filter_announcements(ITEMS, office="Housing", q="scholar") == []
+
+
+def test_filter_by_category():
+    assert filter_announcements(ITEMS, category="Dorm") == [ITEMS[1]]
+    assert filter_announcements(ITEMS, category="Dorm", lang="en") == []
 
 
 def test_list_offices_unique_sorted():

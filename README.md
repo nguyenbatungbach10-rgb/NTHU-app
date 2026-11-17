@@ -4,7 +4,8 @@ A website that helps NTHU students plan their days, track their studies and
 keep up with campus announcements and deadlines. I2P Final Project.
 
 ## Features
-- Campus Announcements & Deadline Tracker (filter by office or keyword)
+- Campus Announcements & Deadline Tracker (filter by category, office, language
+  or keyword; latest news on the home page)
 - Personal Calendar, Study planning and GPA tracking (in progress)
 
 ## Run locally
