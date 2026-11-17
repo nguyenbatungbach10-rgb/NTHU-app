@@ -11,6 +11,8 @@ import calendar
 import re
 from datetime import date, datetime
 
+from deadline_logic import suggest_date
+
 MAX_TITLE = 200
 MAX_TEXT = 1000
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -155,8 +157,9 @@ def shorten_title(title):
 
 
 def mark_saved(items, saved):
-    """Trả về BẢN SAO của items, thêm `event_title` và `saved` cho mỗi thông báo.
+    """Trả về BẢN SAO của items, thêm `event_title`, `event_date`, `date_from_title`, `saved`.
 
+    `event_date` là ngày sẽ lưu vào lịch: ngày đọc được từ tiêu đề (deadline_logic), hoặc ngày đăng.
     `saved` là tập các cặp (tiêu đề sự kiện, ngày) mà người dùng đã lưu.
     Phải copy (dict(item, ...)) vì danh sách gốc nằm trong cache dùng chung
     cho mọi người dùng; sửa trực tiếp sẽ làm lộ trạng thái của người này sang người khác.
@@ -164,9 +167,12 @@ def mark_saved(items, saved):
     result = []
     for item in items:
         event_title = shorten_title(item["title"])
+        suggestion = suggest_date(item["title"], item["date"])
         result.append(dict(
             item,
             event_title=event_title,
-            saved=(event_title, item["date"]) in saved,
+            event_date=suggestion["date"],
+            date_from_title=suggestion["from_title"],
+            saved=(event_title, suggestion["date"]) in saved,
         ))
     return result

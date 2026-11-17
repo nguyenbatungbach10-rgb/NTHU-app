@@ -9,7 +9,7 @@ keep up with campus announcements and deadlines. I2P Final Project.
 - Weekly Schedule: class timetable that repeats every week, with warnings when two classes overlap
 - Campus Announcements & Deadline Tracker: live data from the NTHU Data API,
   filter by category, office, language or keyword, and save a deadline to your
-  calendar with one click
+  calendar with one click (the date is read from the title when it contains one)
 - Credits & GPA: add courses per semester, weighted GPA on the NTHU scale (A+ = 4.3),
   credit progress, and the average grade you need to reach a target GPA
 - Study planning: tasks that can be broken into steps (with due dates and overdue marks),
@@ -36,7 +36,7 @@ python -m pytest
 
 ## Docs
 - `CALENDAR_API.md`: the Calendar API
-- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`, `GIAI_THICH_SCHEDULE.md`: code walkthroughs (Vietnamese)
+- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`, `GIAI_THICH_SCHEDULE.md`, `GIAI_THICH_DEADLINE.md`: code walkthroughs (Vietnamese)
 
 ## Team
 Nguyen Ba Tung Bach, Nguyen Duy Manh, Lam Trong Nhan

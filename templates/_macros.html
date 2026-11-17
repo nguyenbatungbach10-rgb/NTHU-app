@@ -34,8 +34,12 @@
     {% else %}
       {# static/app.js gửi các data-* này tới POST /api/events #}
       <button class="btn small" type="button" data-save
-              data-title="{{ item.event_title }}" data-date="{{ item.date }}"
+              data-title="{{ item.event_title }}" data-date="{{ item.event_date or item.date }}"
               data-office="{{ item.office }}" data-url="{{ item.link }}">Save to Calendar</button>
+    {% endif %}
+    {# Ngày lấy từ tiêu đề là đoán, nên nói rõ cho người dùng tự kiểm tra #}
+    {% if item.date_from_title %}
+      <span class="date-hint">Will be saved on {{ item.event_date }} (date found in the title)</span>
     {% endif %}
   {% endif %}
 </li>

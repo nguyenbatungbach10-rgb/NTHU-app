@@ -322,3 +322,5 @@ a.pill { display: block; box-sizing: border-box; text-decoration: none; }
 .class-name { font-weight: 600; overflow-wrap: anywhere; }
 .class-room { font-size: 0.82rem; color: var(--muted); }
 .class-warn { font-size: 0.78rem; color: #b3261e; font-weight: 600; }
+
+.date-hint { margin-left: 10px; font-size: 0.82rem; color: var(--muted); }

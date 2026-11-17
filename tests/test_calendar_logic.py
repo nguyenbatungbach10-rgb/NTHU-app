@@ -166,3 +166,23 @@ def test_task_due_today_is_not_overdue_on_the_calendar():
     cells = {c["iso"]: c for week in build_month(2026, 11, [], date(2026, 11, 18), tasks) for c in week if c}
     assert cells["2026-11-18"]["tasks"][0]["overdue"] is False
     assert cells["2026-11-17"]["tasks"][0]["overdue"] is True
+
+
+# ---------- mark_saved dùng ngày trong tiêu đề ----------
+
+def test_mark_saved_uses_date_found_in_title_and_matches_saved_events():
+    from calendar_logic import mark_saved
+    items = [{"title": "Application deadline: Nov 20", "date": "2026-11-01"},
+             {"title": "Dorm news", "date": "2026-11-02"}]
+    marked = mark_saved(items, {("Application deadline: Nov 20", "2026-11-20")})
+    assert marked[0]["event_date"] == "2026-11-20" and marked[0]["date_from_title"] is True
+    assert marked[0]["saved"] is True                     # sự kiện đã lưu đúng ngày hạn
+    assert marked[1]["event_date"] == "2026-11-02" and marked[1]["date_from_title"] is False
+    assert marked[1]["saved"] is False
+    assert "event_date" not in items[0]                    # không sửa dữ liệu gốc (cache dùng chung)
+
+
+def test_mark_saved_old_event_on_posted_date_is_not_considered_saved():
+    from calendar_logic import mark_saved
+    items = [{"title": "Application deadline: Nov 20", "date": "2026-11-01"}]
+    assert mark_saved(items, {("Application deadline: Nov 20", "2026-11-01")})[0]["saved"] is False
