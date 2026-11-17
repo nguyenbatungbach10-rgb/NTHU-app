@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Announcements - NTHU Campus Assistant{% endblock %}
+
+{% block content %}
+<h1>Campus Announcements</h1>
+
+{% if error %}
+  <div class="alert">
+    Showing sample data. {{ error }}
+  </div>
+{% endif %}
+
+{# Form dùng method GET: khi bấm Filter, trình duyệt gọi /announcements?office=...&q=...&lang=... #}
+<form class="filters" method="get" action="{{ url_for('announcements') }}">
+  <select name="office" aria-label="Office">
+    <option value="">All offices</option>
+    {% for name in offices %}
+      <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
+    {% endfor %}
+  </select>
+  <select name="lang" aria-label="Language">
+    {% for value, label in [('', 'All languages'), ('en', 'English'), ('zh-tw', '中文')] %}
+      <option value="{{ value }}" {{ 'selected' if value == lang }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search keyword...">
+  <button class="btn" type="submit">Filter</button>
+  {% if q or office or lang %}
+    <a class="clear" href="{{ url_for('announcements') }}">Clear</a>
+  {% endif %}
+</form>
+
+<p class="count">{{ count }} of {{ total }} announcements, newest first</p>
+
+{% if items %}
+  <ul class="list">
+    {% for item in items %}
+      <li class="item">
+        <div class="meta">
+          <span class="office">{{ item.office }}</span>
+          <span class="date">{{ item.date }}</span>
+        </div>
+        <h3>
+          {% if item.link %}
+            <a href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+          {% else %}
+            {{ item.title }}
+          {% endif %}
+        </h3>
+        {# Sau này nối với Calendar API của Manh để lưu deadline #}
+        <button class="btn small" type="button" disabled
+                title="Will connect to the Calendar API">Save to Calendar</button>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if total_pages > 1 %}
+    {# Giữ nguyên các bộ lọc khi đổi trang; giá trị rỗng -> None để url_for bỏ qua #}
+    <nav class="pager">
+      {% if page > 1 %}
+        <a class="btn small"
+           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, page=page - 1) }}">&larr; Newer</a>
+      {% else %}
+        <span></span>
+      {% endif %}
+      <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a class="btn small"
+           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, page=page + 1) }}">Older &rarr;</a>
+      {% else %}
+        <span></span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <p class="empty">No announcements match your filter.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,146 @@
+/* Giao diện tím cho NTHU Campus Assistant */
+:root {
+  --purple: #6b3fa0;
+  --purple-dark: #4b2a78;
+  --purple-soft: #f1ebf9;
+  --ink: #241b33;
+  --muted: #6e6580;
+  --line: #e2daf0;
+  --bg: #faf8fd;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+a { color: var(--purple); }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--purple);
+  color: #fff;
+}
+.brand { color: #fff; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.topbar nav a,
+.topbar nav .soon {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.topbar nav a:hover { background: rgba(255, 255, 255, 0.18); }
+.topbar nav a.active { background: #fff; color: var(--purple-dark); font-weight: 600; }
+.topbar nav .soon { opacity: 0.55; cursor: default; }
+
+.container { max-width: 880px; margin: 0 auto; padding: 28px 20px 48px; }
+.footer { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
+
+h1 { margin: 0 0 16px; color: var(--purple-dark); }
+
+.hero { padding: 28px 0 24px; }
+.hero p { max-width: 560px; color: var(--muted); font-size: 1.05rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+}
+.card h3 { margin: 0 0 6px; color: var(--purple-dark); }
+.card p { margin: 0 0 10px; color: var(--muted); }
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.btn {
+  display: inline-block;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--purple);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover { background: var(--purple-dark); }
+.btn.small { padding: 5px 12px; font-size: 0.82rem; margin-top: 8px; }
+.btn:disabled { background: #cfc4e0; cursor: not-allowed; }
+
+.alert {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff6e0;
+  border: 1px solid #f0d78a;
+  color: #6b5200;
+  font-size: 0.9rem;
+}
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.filters select,
+.filters input {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.filters input { flex: 1; min-width: 180px; }
+.clear { font-size: 0.9rem; }
+.count { color: var(--muted); font-size: 0.9rem; margin: 6px 0 16px; }
+
+.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+.item h3 { margin: 6px 0 0; font-size: 1.02rem; }
+.item h3 a { text-decoration: none; }
+.item h3 a:hover { text-decoration: underline; }
+.meta { display: flex; justify-content: space-between; gap: 10px; font-size: 0.82rem; }
+.office { color: var(--purple); font-weight: 600; }
+.date { color: var(--muted); }
+.empty { color: var(--muted); padding: 24px 0; }
+
+@media (max-width: 520px) {
+  .topbar { padding: 12px 16px; }
+  .container { padding: 20px 14px 40px; }
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.page-info { color: var(--muted); font-size: 0.9rem; }
+.filters select { max-width: 100%; }
