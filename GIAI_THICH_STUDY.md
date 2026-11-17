@@ -63,13 +63,21 @@ Mọi POST/PUT/DELETE cần CSRF token.
   `javascript:...` không bao giờ thành link.
 - Số phút phải là số nguyên 1-1440; `true/false` bị từ chối (trong Python `True` cũng là số 1).
 
+## 7b. Hạn nộp hiện trên Calendar
+- Trang `/calendar` đọc thêm các việc **chưa xong** có hạn nộp trong tháng (`db.list_tasks_due`) và truyền cho
+  `build_month(..., tasks)`. Mỗi ô ngày có thêm danh sách `tasks`.
+- Dữ liệu **không bị nhân đôi**: việc vẫn chỉ nằm ở bảng `tasks`, lịch chỉ đọc ra để vẽ. Nên tick xong ở trang Study
+  thì thẻ tự biến mất khỏi lịch.
+- Thẻ việc có viền (khác thẻ sự kiện tô tím đặc); quá hạn thì màu đỏ. Đúng hôm nay chưa tính quá hạn.
+- Bước con (subtask) có hạn nộp cũng hiện.
+
 ## 8. Cách test
 - `tests/test_study_logic.py`: số tính tay (tuần, quá hạn, cộng phút, thứ tự, kiểm tra dữ liệu).
 - `tests/test_study_api.py`: CRUD, CSRF, cô lập dữ liệu, thử tấn công bằng id của người khác, xóa dây chuyền, XSS.
 - Đã thử **phá code cố ý** (bỏ `user_id` khỏi từng câu SQL, bỏ bước kiểm tra môn, bỏ luật một cấp...) để chắc chắn test thật sự bắt được.
 
 ## 9. Hạn chế đã biết
-- Việc chưa tự xuất hiện trên **Calendar**; hạn nộp chỉ hiện ở trang Study. (Có thể làm tiếp: nút "Add to Calendar".)
+- Việc trên Calendar chỉ để **xem** (bấm vào sẽ sang trang Study để sửa); không kéo thả đổi ngày hạn.
 - Chưa có đồng hồ bấm giờ: phải tự nhập số phút sau khi học.
 - Việc con chỉ một cấp, không kéo thả đổi thứ tự.
 - "Hôm nay" và "tuần này" tính theo giờ của máy chạy server, không theo múi giờ từng người dùng.

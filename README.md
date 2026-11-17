@@ -12,7 +12,8 @@ keep up with campus announcements and deadlines. I2P Final Project.
 - Credits & GPA: add courses per semester, weighted GPA on the NTHU scale (A+ = 4.3),
   credit progress, and the average grade you need to reach a target GPA
 - Study planning: tasks that can be broken into steps (with due dates and overdue marks),
-  subjects with their materials (links, notes), and a study-time log with weekly totals
+  subjects with their materials (links, notes), and a study-time log with weekly totals;
+  task due dates also show up on the calendar
 
 ## Run locally
 ```

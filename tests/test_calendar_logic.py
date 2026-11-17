@@ -132,3 +132,37 @@ def test_mark_saved_copies_items_and_marks_saved():
     assert [r["saved"] for r in result] == [True, False]
     assert result[0]["event_title"] == "A"
     assert "saved" not in items[0]  # danh sách gốc (cache dùng chung) không bị sửa
+
+
+# ---------- việc cần làm hiện trên lịch ----------
+
+def test_build_month_places_tasks_on_their_due_day_and_flags_overdue():
+    from datetime import date
+    from calendar_logic import build_month
+    tasks = [{"id": 2, "title": "B", "due_date": "2026-11-20"},
+             {"id": 1, "title": "A", "due_date": "2026-11-20"},
+             {"id": 3, "title": "Late", "due_date": "2026-11-10"}]
+    weeks = build_month(2026, 11, [], date(2026, 11, 18), tasks)
+    cells = {c["iso"]: c for week in weeks for c in week if c}
+    assert [t["title"] for t in cells["2026-11-20"]["tasks"]] == ["A", "B"]      # xếp theo id
+    assert cells["2026-11-20"]["tasks"][0]["overdue"] is False
+    assert cells["2026-11-10"]["tasks"][0]["overdue"] is True
+    assert cells["2026-11-18"]["tasks"] == []
+    assert "overdue" not in tasks[0]                                              # không sửa dữ liệu gốc
+
+
+def test_build_month_without_tasks_still_works():
+    from datetime import date
+    from calendar_logic import build_month
+    weeks = build_month(2026, 11, [], date(2026, 11, 18))
+    assert all(c["tasks"] == [] for week in weeks for c in week if c)
+
+
+def test_task_due_today_is_not_overdue_on_the_calendar():
+    from datetime import date
+    from calendar_logic import build_month
+    tasks = [{"id": 1, "title": "Today", "due_date": "2026-11-18"},
+             {"id": 2, "title": "Yesterday", "due_date": "2026-11-17"}]
+    cells = {c["iso"]: c for week in build_month(2026, 11, [], date(2026, 11, 18), tasks) for c in week if c}
+    assert cells["2026-11-18"]["tasks"][0]["overdue"] is False
+    assert cells["2026-11-17"]["tasks"][0]["overdue"] is True

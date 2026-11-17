@@ -272,3 +272,48 @@ def test_db_updates_are_scoped_to_owner(app, browser):
         assert db.update_session(2, session["id"], hacked_session) is None
         assert db.get_task(1, task["id"])["title"] == "Mine"
         assert db.get_session(1, session["id"])["minutes"] == 5
+
+
+# ---------- hạn nộp hiện trên Calendar ----------
+
+def test_calendar_shows_open_tasks_with_due_date_in_that_month(browser):
+    make_task(browser, title="Open task", due_date="2026-11-20")
+    make_task(browser, title="Next month task", due_date="2026-12-05")
+    make_task(browser, title="No due date")
+    done = make_task(browser, title="Finished task", due_date="2026-11-21").get_json()
+    browser.api("PUT", f"/api/tasks/{done['id']}", {"title": "Finished task", "due_date": "2026-11-21", "done": True})
+
+    html = browser.client.get("/calendar?month=2026-11").data.decode()
+    assert "Open task" in html
+    assert "Next month task" not in html and "No due date" not in html
+    assert "Finished task" not in html                               # việc đã xong không hiện
+    assert 'href="/study"' in html and "task-pill" in html
+    assert "Next month task" in browser.client.get("/calendar?month=2026-12").data.decode()
+
+
+def test_calendar_shows_subtask_due_dates_and_marks_overdue(browser):
+    parent = make_task(browser, title="Project").get_json()
+    make_task(browser, title="Old step", parent_id=parent["id"], due_date="2020-03-01")
+    html = browser.client.get("/calendar?month=2020-03").data.decode()
+    assert "Old step" in html and "task-pill overdue" in html
+
+
+def test_calendar_does_not_show_other_users_tasks(browser, make_browser):
+    make_task(browser, title="Private task", due_date="2026-11-20")
+    other = other_user(make_browser)
+    assert "Private task" not in other.client.get("/calendar?month=2026-11").data.decode()
+
+
+def test_calendar_escapes_task_titles(browser):
+    make_task(browser, title="<script>alert(1)</script>", due_date="2026-11-20")
+    html = browser.client.get("/calendar?month=2026-11").data.decode()
+    assert "<script>alert(1)</script>" not in html and "&lt;script&gt;" in html
+
+
+def test_db_list_tasks_due_is_scoped_and_ranged(app, browser):
+    import db
+    make_task(browser, title="In", due_date="2026-11-20")
+    make_task(browser, title="Edge", due_date="2026-12-01")          # end không tính
+    with app.app_context():
+        assert [t["title"] for t in db.list_tasks_due(1, "2026-11-01", "2026-12-01")] == ["In"]
+        assert db.list_tasks_due(2, "2026-11-01", "2026-12-01") == []

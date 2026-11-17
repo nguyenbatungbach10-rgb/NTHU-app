@@ -109,16 +109,23 @@ def month_label(year, month):
     return date(year, month, 1).strftime("%B %Y")
 
 
-def build_month(year, month, events, today):
+def build_month(year, month, events, today, tasks=()):
     """Dựng lưới lịch tháng: list các tuần, mỗi tuần 7 ô (Thứ 2 đến Chủ nhật).
 
     Ô ngoài tháng là None. Ô trong tháng là dict:
-        {"day", "iso", "events": [...], "is_today"}
+        {"day", "iso", "events": [...], "tasks": [...], "is_today"}
     Sự kiện trong một ngày xếp theo giờ (sự kiện cả ngày trước).
+    `tasks` là các việc cần làm CHƯA XONG có hạn nộp (từ trang Study); mỗi việc được
+    thêm `overdue` = hạn nộp đã qua. Việc chỉ để xem, sửa ở trang Study.
     """
     by_day = {}
     for event in events:
         by_day.setdefault(event["date"], []).append(event)
+
+    tasks_by_day = {}
+    for task in tasks:
+        item = dict(task, overdue=task["due_date"] < today.isoformat())  # copy, không sửa bản gốc
+        tasks_by_day.setdefault(task["due_date"], []).append(item)
 
     weeks = []
     for week in calendar.Calendar(firstweekday=0).monthdayscalendar(year, month):
@@ -133,6 +140,7 @@ def build_month(year, month, events, today):
                 "day": day,
                 "iso": iso,
                 "events": day_events,
+                "tasks": sorted(tasks_by_day.get(iso, []), key=lambda t: t["id"]),
                 "is_today": iso == today.isoformat(),
             })
         weeks.append(row)

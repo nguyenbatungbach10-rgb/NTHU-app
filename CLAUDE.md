@@ -12,6 +12,7 @@ in simple words (the owner is a beginner), so we can answer TA questions.
 1. Personal Calendar & General Schedule - DONE (month view, add/edit/delete).
 2. Study planning - DONE (/study page: tasks with subtasks and due dates, subjects with
    materials, study-time log; study_logic.py + /api/subjects, /api/tasks, /api/sessions).
+   Open tasks with a due date are also shown (read-only) on the Calendar.
 3. Credit & GPA tracking - DONE (/gpa page: courses per semester, weighted GPA,
    credit progress, needed average for a target GPA; gpa_logic.py + /api/courses, /api/goals).
 4. Campus Announcements & Deadline Tracker - fetch from the NTHU Data API,
@@ -55,7 +56,7 @@ GIAI_THICH_STUDY.md     explanation of the Study planning feature
 templates/              base, home, announcements, calendar, gpa, study, login, signup,
                         _macros.html (Jinja macro shared by home and announcements)
 static/                 style.css (purple theme), app.js
-tests/                  pytest (143 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (151 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

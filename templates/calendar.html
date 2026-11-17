@@ -39,6 +39,11 @@
                 {% if ev.time %}<span class="pill-time">{{ ev.time }}</span>{% endif %}{{ ev.title }}
               </button>
             {% endfor %}
+            {# Hạn nộp của việc cần làm (từ trang Study): chỉ để xem, bấm vào để mở trang Study #}
+            {% for t in cell.tasks %}
+              <a class="pill task-pill {{ 'overdue' if t.overdue }}" href="{{ url_for('study_page') }}"
+                 title="Task due: {{ t.title }}">&#9744; {{ t.title }}</a>
+            {% endfor %}
           </div>
         {% else %}
           <div class="cal-cell blank"></div>

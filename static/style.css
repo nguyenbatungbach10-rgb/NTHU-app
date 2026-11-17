@@ -301,3 +301,9 @@ dialog::backdrop { background: rgba(36, 27, 51, 0.45); }
 /* bảng quá rộng thì cuộn ngang trong khung, không làm cả trang bị tràn */
 .table-wrap { overflow-x: auto; border-radius: 12px; }
 .nowrap { white-space: nowrap; }
+
+/* hạn nộp của việc cần làm trên Calendar */
+a.pill { display: block; box-sizing: border-box; text-decoration: none; }
+.task-pill { background: #fff; color: var(--purple-dark); box-shadow: inset 0 0 0 1px var(--purple); }
+.task-pill:hover { background: var(--purple-soft); }
+.task-pill.overdue { color: #b3261e; box-shadow: inset 0 0 0 1px #b3261e; }

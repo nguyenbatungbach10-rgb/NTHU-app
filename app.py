@@ -283,6 +283,7 @@ def calendar_page():
     year, month = parse_month(request.args.get("month")) or (today.year, today.month)
     start, end = month_bounds(year, month)
     events = db.list_events(g.user["id"], start, end)
+    tasks = db.list_tasks_due(g.user["id"], start, end)
 
     prev_year, prev_month = shift_month(year, month, -1)
     next_year, next_month = shift_month(year, month, 1)
@@ -290,7 +291,7 @@ def calendar_page():
 
     return render_template(
         "calendar.html",
-        weeks=build_month(year, month, events, today),
+        weeks=build_month(year, month, events, today, tasks),
         weekdays=WEEKDAYS,
         label=month_label(year, month),
         prev_month=f"{prev_year:04d}-{prev_month:02d}",

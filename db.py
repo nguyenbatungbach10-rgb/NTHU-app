@@ -400,6 +400,17 @@ def list_tasks(user_id):
     return [_task_row(row) for row in rows]
 
 
+def list_tasks_due(user_id, start, end):
+    """Việc CHƯA XONG của user_id có hạn nộp từ start đến TRƯỚC end (để hiện trên Calendar)."""
+    rows = get_db().execute(
+        f"SELECT {TASK_COLUMNS} FROM tasks "
+        "WHERE user_id = ? AND done = 0 AND due_date != '' AND due_date >= ? AND due_date < ? "
+        "ORDER BY due_date, id",
+        (user_id, start, end),
+    ).fetchall()
+    return [_task_row(row) for row in rows]
+
+
 def update_task(user_id, task_id, task):
     """Sửa tiêu đề, hạn, trạng thái, môn. parent_id KHÔNG đổi được sau khi tạo."""
     conn = get_db()
