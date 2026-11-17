@@ -50,6 +50,16 @@ from gpa_logic import (
     validate_course,
     validate_goals,
 )
+from study_logic import (
+    build_task_tree,
+    format_minutes,
+    minutes_by_subject,
+    overview as study_overview,
+    validate_session,
+    validate_subject,
+    validate_task,
+    week_bounds,
+)
 from nthu_api import (
     category_counts,
     fetch_announcements,
@@ -402,6 +412,150 @@ def api_goals():
         return jsonify(db.set_goals(g.user["id"], goals))
     goals = load_goals(g.user["id"])
     return jsonify({"target_gpa": goals["target_gpa"], "credits_required": goals["credits_required"]})
+
+
+# ======================= Study planning: trang web =======================
+
+@app.route("/study")
+@login_required
+def study_page():
+    """Trang Study: việc cần làm (có việc con), môn học + tài liệu, thời gian học."""
+    uid = g.user["id"]
+    today = date.today()
+    subjects = db.list_subjects(uid)
+    names = {subject["id"]: subject["name"] for subject in subjects}
+    tasks = db.list_tasks(uid)
+    sessions = db.list_sessions(uid)
+    week_start, week_end = week_bounds(today)
+
+    week_by_subject = {row["subject_id"]: row["minutes"]
+                       for row in minutes_by_subject(sessions, names, week_start, week_end)}
+    recent = [dict(s, subject_name=names.get(s["subject_id"], "")) for s in sessions[:15]]
+    return render_template(
+        "study.html",
+        stats=study_overview(tasks, sessions, today),
+        task_tree=build_task_tree(tasks, today.isoformat(), names),
+        subjects=[dict(s, week_minutes=week_by_subject.get(s["id"], 0)) for s in subjects],
+        week_rows=minutes_by_subject(sessions, names, week_start, week_end),
+        sessions=recent,
+        today=today.isoformat(),
+        fmt_minutes=format_minutes,
+    )
+
+
+# ======================= Study planning: API =======================
+
+def subject_exists(subject_id):
+    """True nếu subject_id trống, hoặc là môn của người dùng hiện tại.
+
+    Quan trọng: không có bước này, người dùng A có thể gắn việc của mình vào môn của B.
+    """
+    return subject_id is None or db.get_subject(g.user["id"], subject_id) is not None
+
+
+@app.route("/api/subjects", methods=["GET", "POST"])
+@login_required
+def api_subjects():
+    """POST: thêm môn học. GET: danh sách môn học của bạn."""
+    if request.method == "POST":
+        subject, error = validate_subject(request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(db.add_subject(g.user["id"], subject)), 201
+    return jsonify(db.list_subjects(g.user["id"]))
+
+
+@app.route("/api/subjects/<int:subject_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_subject(subject_id):
+    """PUT: sửa môn. DELETE: xóa môn (việc và buổi học của môn đó được giữ lại)."""
+    if request.method == "DELETE":
+        if not db.delete_subject(g.user["id"], subject_id):
+            return jsonify({"error": "subject not found"}), 404
+        return "", 204
+    subject, error = validate_subject(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    updated = db.update_subject(g.user["id"], subject_id, subject)
+    if updated is None:
+        return jsonify({"error": "subject not found"}), 404
+    return jsonify(updated)
+
+
+@app.route("/api/tasks", methods=["GET", "POST"])
+@login_required
+def api_tasks():
+    """POST: thêm việc (có parent_id = thêm việc con). GET: danh sách việc của bạn."""
+    if request.method == "GET":
+        return jsonify(db.list_tasks(g.user["id"]))
+
+    task, error = validate_task(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    if task["parent_id"] is not None:
+        parent = db.get_task(g.user["id"], task["parent_id"])
+        if parent is None:
+            return jsonify({"error": "parent task not found"}), 400
+        if parent["parent_id"] is not None:
+            return jsonify({"error": "a subtask cannot have its own subtasks"}), 400
+        task["subject_id"] = None            # việc con dùng môn của việc cha
+    elif not subject_exists(task["subject_id"]):
+        return jsonify({"error": "subject not found"}), 400
+    return jsonify(db.add_task(g.user["id"], task)), 201
+
+
+@app.route("/api/tasks/<int:task_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_task(task_id):
+    """PUT: sửa việc / tick xong. DELETE: xóa (việc con bị xóa theo)."""
+    if request.method == "DELETE":
+        if not db.delete_task(g.user["id"], task_id):
+            return jsonify({"error": "task not found"}), 404
+        return "", 204
+
+    existing = db.get_task(g.user["id"], task_id)
+    if existing is None:
+        return jsonify({"error": "task not found"}), 404
+    task, error = validate_task(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    if existing["parent_id"] is not None:
+        task["subject_id"] = None            # việc con không có môn riêng
+    elif not subject_exists(task["subject_id"]):
+        return jsonify({"error": "subject not found"}), 400
+    return jsonify(db.update_task(g.user["id"], task_id, task))
+
+
+@app.route("/api/sessions", methods=["GET", "POST"])
+@login_required
+def api_sessions():
+    """POST: ghi một buổi học. GET: các buổi học của bạn (mới nhất trước)."""
+    if request.method == "GET":
+        return jsonify(db.list_sessions(g.user["id"]))
+    session_data, error = validate_session(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    if not subject_exists(session_data["subject_id"]):
+        return jsonify({"error": "subject not found"}), 400
+    return jsonify(db.add_session(g.user["id"], session_data)), 201
+
+
+@app.route("/api/sessions/<int:session_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_session(session_id):
+    """PUT: sửa buổi học. DELETE: xóa."""
+    if request.method == "DELETE":
+        if not db.delete_session(g.user["id"], session_id):
+            return jsonify({"error": "session not found"}), 404
+        return "", 204
+    if db.get_session(g.user["id"], session_id) is None:
+        return jsonify({"error": "session not found"}), 404
+    session_data, error = validate_session(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    if not subject_exists(session_data["subject_id"]):
+        return jsonify({"error": "subject not found"}), 400
+    return jsonify(db.update_session(g.user["id"], session_id, session_data))
 
 
 if __name__ == "__main__":

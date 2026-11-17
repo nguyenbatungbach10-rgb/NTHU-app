@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Study - NTHU Campus Assistant{% endblock %}
+
+{# Một dòng việc cần làm. Dùng cho cả việc cha và việc con (đệ quy một cấp). #}
+{% macro task_row(t, is_child=false) %}
+  <li class="task {{ 'child' if is_child }} {{ 'done' if t.done }}">
+    <input type="checkbox" class="task-check" data-toggle {{ 'checked' if t.done }}
+           data-id="{{ t.id }}" data-title="{{ t.title }}" data-due="{{ t.due_date }}"
+           data-subject="{{ t.subject_id if t.subject_id else '' }}"
+           aria-label="Mark &quot;{{ t.title }}&quot; as done">
+    <div class="task-main">
+      <span class="task-title">{{ t.title }}</span>
+      <span class="task-meta">
+        {% if t.due_date %}<span class="due {{ 'overdue' if t.overdue }}">{{ 'Overdue &middot; ' | safe if t.overdue }}{{ t.due_date }}</span>{% endif %}
+        {% if not is_child and t.subject_name %}<span class="chip">{{ t.subject_name }}</span>{% endif %}
+        {% if not is_child and t.subtasks_total %}<span class="muted">{{ t.subtasks_done }}/{{ t.subtasks_total }} steps</span>{% endif %}
+      </span>
+    </div>
+    <div class="task-actions">
+      {% if not is_child %}
+        <button class="btn small ghost" type="button" data-add-task data-parent="{{ t.id }}">+ Step</button>
+      {% endif %}
+      <button class="btn small ghost" type="button" data-task
+              data-id="{{ t.id }}" data-title="{{ t.title }}" data-due="{{ t.due_date }}"
+              data-subject="{{ t.subject_id if t.subject_id else '' }}"
+              data-parent="{{ t.parent_id if t.parent_id else '' }}" data-done="{{ 1 if t.done else 0 }}">Edit</button>
+    </div>
+  </li>
+{% endmacro %}
+
+{% block content %}
+<div class="cal-bar">
+  <h1>Study planning</h1>
+  <div class="cal-nav">
+    <button class="btn small" type="button" data-add-task>+ Add task</button>
+    <button class="btn small ghost" type="button" data-add-session data-date="{{ today }}">+ Log study time</button>
+    <button class="btn small ghost" type="button" data-add-subject>+ Add subject</button>
+  </div>
+</div>
+
+<section class="stats">
+  <article class="stat">
+    <span class="stat-label">Open tasks</span>
+    <span class="stat-value">{{ stats.open }}</span>
+    <span class="stat-note">{{ stats.done }} done</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">Overdue</span>
+    <span class="stat-value {{ 'bad' if stats.overdue }}">{{ stats.overdue }}</span>
+    <span class="stat-note">{{ 'catch up when you can' if stats.overdue else 'nothing late' }}</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">Studied this week</span>
+    <span class="stat-value">{{ fmt_minutes(stats.week_minutes) }}</span>
+    <span class="stat-note">on {{ stats.days_studied_this_week }} day{{ '' if stats.days_studied_this_week == 1 else 's' }}</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">Studied today</span>
+    <span class="stat-value">{{ fmt_minutes(stats.today_minutes) }}</span>
+    <span class="stat-note">{{ today }}</span>
+  </article>
+</section>
+
+<div class="study-grid">
+  <section class="panel">
+    <h2>Tasks</h2>
+    {% if task_tree %}
+      <ul class="tasks">
+        {% for t in task_tree %}
+          {{ task_row(t) }}
+          {% for child in t.children %}{{ task_row(child, true) }}{% endfor %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">No tasks yet. Press <strong>+ Add task</strong>, then use <strong>+ Step</strong>
+         to break a big task into small steps.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Subjects &amp; materials</h2>
+    {% if subjects %}
+      {% for s in subjects %}
+        <div class="subject">
+          <div class="subject-head">
+            <strong>{{ s.name }}</strong>
+            <span class="muted">{{ fmt_minutes(s.week_minutes) }} this week</span>
+            <button class="btn small ghost" type="button" data-subject-edit
+                    data-id="{{ s.id }}" data-name="{{ s.name }}" data-notes="{{ s.notes }}">Edit</button>
+          </div>
+          {# urlize biến link http(s) thành thẻ <a>; nội dung vẫn được escape nên an toàn #}
+          {% if s.notes %}<p class="notes">{{ s.notes | urlize(40, target="_blank", rel="noopener noreferrer") }}</p>{% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">No subjects yet. Add one to keep its links and notes together.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Study time</h2>
+  {% if week_rows %}
+    <h3 class="sub">This week by subject</h3>
+    {% set top = week_rows[0].minutes %}
+    <ul class="bars">
+      {% for row in week_rows %}
+        <li>
+          <span class="bar-name">{{ row.name }}</span>
+          <div class="bar"><span style="width: {{ (row.minutes * 100 / top) | round | int }}%"></span></div>
+          <span class="bar-value">{{ fmt_minutes(row.minutes) }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if sessions %}
+    <h3 class="sub">Recent sessions</h3>
+    <div class="table-wrap">
+    <table class="courses">
+      <thead><tr><th>Date</th><th>Subject</th><th class="num">Time</th><th>Note</th><th></th></tr></thead>
+      <tbody>
+        {% for s in sessions %}
+          <tr>
+            <td class="nowrap">{{ s.date }}</td>
+            <td>{{ s.subject_name or '—' }}</td>
+            <td class="num">{{ fmt_minutes(s.minutes) }}</td>
+            <td>{{ s.note }}</td>
+            <td class="num">
+              <button class="btn small ghost" type="button" data-session
+                      data-id="{{ s.id }}" data-date="{{ s.date }}" data-minutes="{{ s.minutes }}"
+                      data-subject="{{ s.subject_id if s.subject_id else '' }}" data-note="{{ s.note }}">Edit</button>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% else %}
+    <p class="empty">No study time logged yet. Press <strong>+ Log study time</strong> after a session.</p>
+  {% endif %}
+</section>
+
+{# ---------- ba hộp thoại ---------- #}
+<dialog id="task-dialog">
+  <form class="dialog-form">
+    <h2>Add task</h2>
+    <input type="hidden" name="parent_id">
+    <input type="hidden" name="done">
+    <div class="field">
+      <label for="tk-title">Title</label>
+      <input id="tk-title" name="title" maxlength="200" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="tk-due">Due date <small>(optional)</small></label>
+        <input id="tk-due" name="due_date" type="date">
+      </div>
+      <div class="field" data-subject-field>
+        <label for="tk-subject">Subject <small>(optional)</small></label>
+        <select id="tk-subject" name="subject_id">
+          <option value="">None</option>
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <p class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" data-cancel>Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="subject-dialog">
+  <form class="dialog-form">
+    <h2>Add subject</h2>
+    <div class="field">
+      <label for="sb-name">Name</label>
+      <input id="sb-name" name="name" maxlength="100" required>
+    </div>
+    <div class="field">
+      <label for="sb-notes">Materials &amp; notes <small>(links, books)</small></label>
+      <textarea id="sb-notes" name="notes" rows="4" maxlength="1000"></textarea>
+    </div>
+    <p class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" data-cancel>Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="session-dialog">
+  <form class="dialog-form">
+    <h2>Log study time</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="se-date">Date</label>
+        <input id="se-date" name="date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="se-minutes">Minutes</label>
+        <input id="se-minutes" name="minutes" type="number" min="1" max="1440" step="1" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="se-subject">Subject <small>(optional)</small></label>
+      <select id="se-subject" name="subject_id">
+        <option value="">None</option>
+        {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="se-note">Note <small>(optional)</small></label>
+      <input id="se-note" name="note" maxlength="300">
+    </div>
+    <p class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" data-cancel>Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

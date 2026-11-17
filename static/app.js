@@ -183,3 +183,137 @@ if (goalForm) {
     }
   });
 }
+
+// ---------- Trang Study: ba hộp thoại (việc, môn học, buổi học) ----------
+
+// Tạo một hộp thoại thêm/sửa/xóa. Trả về hàm open(dữ liệu) để mở hộp thoại.
+//   endpoint: ví dụ "/api/tasks"; noun: chữ hiện trên tiêu đề
+//   fill(form, data): đổ dữ liệu vào form; toPayload(form): đọc form thành JSON gửi lên
+function crudDialog(dialogId, endpoint, noun, fill, toPayload) {
+  const dlg = document.getElementById(dialogId);
+  if (!dlg) return () => {};
+  const form = dlg.querySelector("form");
+  const heading = dlg.querySelector("h2");
+  const deleteButton = dlg.querySelector("[data-delete]");
+  const errorBox = dlg.querySelector(".form-error");
+  let editingId = null; // null = đang thêm mới
+
+  dlg.querySelector("[data-cancel]").addEventListener("click", () => dlg.close());
+
+  form.addEventListener("submit", async (submitEvent) => {
+    submitEvent.preventDefault();
+    try {
+      if (editingId) await api("PUT", `${endpoint}/${editingId}`, toPayload(form));
+      else await api("POST", endpoint, toPayload(form));
+      location.reload(); // Python tính lại mọi thứ từ dữ liệu mới
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+  });
+
+  deleteButton.addEventListener("click", async () => {
+    if (!confirm(`Delete this ${noun}?`)) return;
+    try {
+      await api("DELETE", `${endpoint}/${editingId}`);
+      location.reload();
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+  });
+
+  return function open(data) {
+    editingId = data.id || null;
+    heading.textContent = data.heading || `${editingId ? "Edit" : "Add"} ${noun}`;
+    fill(form, data);
+    deleteButton.hidden = !editingId;
+    errorBox.textContent = "";
+    dlg.showModal();
+  };
+}
+
+// "" -> null, "5" -> 5 (API cần số nguyên hoặc null cho các trường id)
+const idOrNull = (value) => (value === "" || value === undefined ? null : Number(value));
+
+const openTask = crudDialog(
+  "task-dialog", "/api/tasks", "task",
+  (form, data) => {
+    form.elements.title.value = data.title || "";
+    form.elements.due_date.value = data.due || "";
+    form.elements.subject_id.value = data.subject || "";
+    form.elements.parent_id.value = data.parent || "";
+    form.elements.done.value = data.done === "1" ? "1" : "";
+    // Việc con dùng môn của việc cha nên ẩn ô chọn môn
+    form.querySelector("[data-subject-field]").hidden = !!data.parent;
+  },
+  (form) => ({
+    title: form.elements.title.value,
+    due_date: form.elements.due_date.value,
+    subject_id: idOrNull(form.elements.subject_id.value),
+    parent_id: idOrNull(form.elements.parent_id.value),
+    done: form.elements.done.value === "1",
+  }),
+);
+
+const openSubject = crudDialog(
+  "subject-dialog", "/api/subjects", "subject",
+  (form, data) => {
+    form.elements.name.value = data.name || "";
+    form.elements.notes.value = data.notes || "";
+  },
+  (form) => ({ name: form.elements.name.value, notes: form.elements.notes.value }),
+);
+
+const openSession = crudDialog(
+  "session-dialog", "/api/sessions", "session",
+  (form, data) => {
+    form.elements.date.value = data.date || "";
+    form.elements.minutes.value = data.minutes || "";
+    form.elements.subject_id.value = data.subject || "";
+    form.elements.note.value = data.note || "";
+  },
+  (form) => ({
+    date: form.elements.date.value,
+    minutes: form.elements.minutes.value === "" ? null : Number(form.elements.minutes.value),
+    subject_id: idOrNull(form.elements.subject_id.value),
+    note: form.elements.note.value,
+  }),
+);
+
+document.querySelectorAll("[data-add-task]").forEach((button) => {
+  button.addEventListener("click", () => openTask(
+    button.dataset.parent ? { parent: button.dataset.parent, heading: "Add step" } : {}));
+});
+document.querySelectorAll("[data-task]").forEach((button) => {
+  button.addEventListener("click", () => openTask(button.dataset));
+});
+document.querySelectorAll("[data-add-subject]").forEach((button) => {
+  button.addEventListener("click", () => openSubject({}));
+});
+document.querySelectorAll("[data-subject-edit]").forEach((button) => {
+  button.addEventListener("click", () => openSubject(button.dataset));
+});
+document.querySelectorAll("[data-add-session]").forEach((button) => {
+  button.addEventListener("click", () => openSession({ date: button.dataset.date }));
+});
+document.querySelectorAll("[data-session]").forEach((button) => {
+  button.addEventListener("click", () => openSession(button.dataset));
+});
+
+// Ô tick "xong": gửi lại toàn bộ việc với done đã đổi
+document.querySelectorAll("[data-toggle]").forEach((box) => {
+  box.addEventListener("change", async () => {
+    const edit = box.closest("li").querySelector("[data-task]").dataset;
+    try {
+      await api("PUT", `/api/tasks/${box.dataset.id}`, {
+        title: edit.title,
+        due_date: edit.due,
+        subject_id: idOrNull(edit.subject),
+        done: box.checked,
+      });
+      location.reload();
+    } catch (error) {
+      box.checked = !box.checked;
+      alert(error.message);
+    }
+  });
+});

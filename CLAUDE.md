@@ -10,7 +10,8 @@ in simple words (the owner is a beginner), so we can answer TA questions.
 
 ## Features
 1. Personal Calendar & General Schedule - DONE (month view, add/edit/delete).
-2. Study planning - not built yet.
+2. Study planning - DONE (/study page: tasks with subtasks and due dates, subjects with
+   materials, study-time log; study_logic.py + /api/subjects, /api/tasks, /api/sessions).
 3. Credit & GPA tracking - DONE (/gpa page: courses per semester, weighted GPA,
    credit progress, needed average for a target GPA; gpa_logic.py + /api/courses, /api/goals).
 4. Campus Announcements & Deadline Tracker - fetch from the NTHU Data API,
@@ -31,6 +32,8 @@ Password hashing: werkzeug.security. No other packages without asking the team.
   user_id so users can never touch each other's data.
 - Grade scale and passing rules live ONLY in gpa_logic.py (GRADE_POINTS, PASSING_POINTS).
   Courses and goals queries also include user_id.
+- Study: any subject_id / parent_id sent by the client must be checked to belong to the
+  current user (subject_exists(), get_task) before saving. Subtasks have one level only.
 - Every POST/PUT/DELETE needs the CSRF token (form field csrf_token or header
   X-CSRF-Token). API errors are JSON {"error": "..."}.
 - Never mutate the shared announcements cache; use copies (see mark_saved()).
@@ -39,17 +42,20 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 app.py                  routes, login/session, CSRF
 nthu_api.py             fetch / normalize / classify / filter announcements
 calendar_logic.py       validate_event, month grid, mark_saved (pure Python)
+study_logic.py          validate subject/task/session, task tree, week totals (pure Python)
 gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
-db.py                   SQLite: users, events, courses, goals tables, all SQL
+db.py                   SQLite: users, events, courses, goals, subjects, tasks,
+                        study_sessions tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
 GIAI_THICH_ACCOUNT_CALENDAR.md  explanation of accounts, database, calendar
 GIAI_THICH_GPA.md       explanation of the Credit & GPA feature
-templates/              base, home, announcements, calendar, gpa, login, signup,
+GIAI_THICH_STUDY.md     explanation of the Study planning feature
+templates/              base, home, announcements, calendar, gpa, study, login, signup,
                         _macros.html (Jinja macro shared by home and announcements)
 static/                 style.css (purple theme), app.js
-tests/                  pytest (105 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (143 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

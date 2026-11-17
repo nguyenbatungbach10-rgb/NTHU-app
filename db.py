@@ -50,6 +50,44 @@ CREATE TABLE IF NOT EXISTS goals (
     target_gpa       REAL NOT NULL,
     credits_required INTEGER NOT NULL
 );
+
+-- Study planning
+CREATE TABLE IF NOT EXISTS subjects (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    notes      TEXT NOT NULL DEFAULT '',     -- tài liệu: link, sách, ghi chú
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_subjects_user ON subjects (user_id);
+
+-- Xóa môn học thì việc và buổi học còn lại, chỉ mất liên kết (SET NULL).
+-- Xóa việc cha thì các việc con bị xóa theo (CASCADE).
+CREATE TABLE IF NOT EXISTS tasks (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+    parent_id  INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    title      TEXT NOT NULL,
+    due_date   TEXT NOT NULL DEFAULT '',     -- YYYY-MM-DD, rỗng = không có hạn
+    done       INTEGER NOT NULL DEFAULT 0,   -- 0 hoặc 1
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks (user_id);
+
+CREATE TABLE IF NOT EXISTS study_sessions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+    date       TEXT NOT NULL,                -- YYYY-MM-DD
+    minutes    INTEGER NOT NULL,
+    note       TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_date ON study_sessions (user_id, date);
 """
 
 EVENT_COLUMNS = "id, title, date, time, description, source_url"
@@ -270,3 +308,165 @@ def set_goals(user_id, goals):
     )
     conn.commit()
     return get_goals(user_id)
+
+
+# ---------- subjects (Study planning) ----------
+
+SUBJECT_COLUMNS = "id, name, notes"
+
+
+def add_subject(user_id, subject):
+    """Thêm môn học, trả về môn vừa tạo."""
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO subjects (user_id, name, notes) VALUES (?, ?, ?)",
+        (user_id, subject["name"], subject["notes"]),
+    )
+    conn.commit()
+    return get_subject(user_id, cursor.lastrowid)
+
+
+def get_subject(user_id, subject_id):
+    """Không tồn tại HOẶC không thuộc user_id -> None."""
+    row = get_db().execute(
+        f"SELECT {SUBJECT_COLUMNS} FROM subjects WHERE id = ? AND user_id = ?",
+        (subject_id, user_id),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def list_subjects(user_id):
+    rows = get_db().execute(
+        f"SELECT {SUBJECT_COLUMNS} FROM subjects WHERE user_id = ? ORDER BY name COLLATE NOCASE, id",
+        (user_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_subject(user_id, subject_id, subject):
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE subjects SET name = ?, notes = ? WHERE id = ? AND user_id = ?",
+        (subject["name"], subject["notes"], subject_id, user_id),
+    )
+    conn.commit()
+    return get_subject(user_id, subject_id) if cursor.rowcount else None
+
+
+def delete_subject(user_id, subject_id):
+    conn = get_db()
+    cursor = conn.execute(
+        "DELETE FROM subjects WHERE id = ? AND user_id = ?", (subject_id, user_id)
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+# ---------- tasks ----------
+
+TASK_COLUMNS = "id, subject_id, parent_id, title, due_date, done"
+
+
+def _task_row(row):
+    """Dòng database -> dict; cột done (0/1) đổi thành True/False."""
+    task = dict(row)
+    task["done"] = bool(task["done"])
+    return task
+
+
+def add_task(user_id, task):
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO tasks (user_id, subject_id, parent_id, title, due_date, done) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, task["subject_id"], task["parent_id"], task["title"],
+         task["due_date"], int(task["done"])),
+    )
+    conn.commit()
+    return get_task(user_id, cursor.lastrowid)
+
+
+def get_task(user_id, task_id):
+    row = get_db().execute(
+        f"SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
+    ).fetchone()
+    return _task_row(row) if row else None
+
+
+def list_tasks(user_id):
+    rows = get_db().execute(
+        f"SELECT {TASK_COLUMNS} FROM tasks WHERE user_id = ? ORDER BY id", (user_id,)
+    ).fetchall()
+    return [_task_row(row) for row in rows]
+
+
+def update_task(user_id, task_id, task):
+    """Sửa tiêu đề, hạn, trạng thái, môn. parent_id KHÔNG đổi được sau khi tạo."""
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE tasks SET subject_id = ?, title = ?, due_date = ?, done = ? "
+        "WHERE id = ? AND user_id = ?",
+        (task["subject_id"], task["title"], task["due_date"], int(task["done"]), task_id, user_id),
+    )
+    conn.commit()
+    return get_task(user_id, task_id) if cursor.rowcount else None
+
+
+def delete_task(user_id, task_id):
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+# ---------- study sessions ----------
+
+SESSION_COLUMNS = "id, subject_id, date, minutes, note"
+
+
+def add_session(user_id, session):
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO study_sessions (user_id, subject_id, date, minutes, note) VALUES (?, ?, ?, ?, ?)",
+        (user_id, session["subject_id"], session["date"], session["minutes"], session["note"]),
+    )
+    conn.commit()
+    return get_session(user_id, cursor.lastrowid)
+
+
+def get_session(user_id, session_id):
+    row = get_db().execute(
+        f"SELECT {SESSION_COLUMNS} FROM study_sessions WHERE id = ? AND user_id = ?",
+        (session_id, user_id),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def list_sessions(user_id):
+    """Buổi học mới nhất trước."""
+    rows = get_db().execute(
+        f"SELECT {SESSION_COLUMNS} FROM study_sessions WHERE user_id = ? ORDER BY date DESC, id DESC",
+        (user_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_session(user_id, session_id, session):
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE study_sessions SET subject_id = ?, date = ?, minutes = ?, note = ? "
+        "WHERE id = ? AND user_id = ?",
+        (session["subject_id"], session["date"], session["minutes"], session["note"],
+         session_id, user_id),
+    )
+    conn.commit()
+    return get_session(user_id, session_id) if cursor.rowcount else None
+
+
+def delete_session(user_id, session_id):
+    conn = get_db()
+    cursor = conn.execute(
+        "DELETE FROM study_sessions WHERE id = ? AND user_id = ?", (session_id, user_id)
+    )
+    conn.commit()
+    return cursor.rowcount > 0

@@ -11,7 +11,8 @@ keep up with campus announcements and deadlines. I2P Final Project.
   calendar with one click
 - Credits & GPA: add courses per semester, weighted GPA on the NTHU scale (A+ = 4.3),
   credit progress, and the average grade you need to reach a target GPA
-- Study planning (in progress)
+- Study planning: tasks that can be broken into steps (with due dates and overdue marks),
+  subjects with their materials (links, notes), and a study-time log with weekly totals
 
 ## Run locally
 ```
@@ -33,7 +34,7 @@ python -m pytest
 
 ## Docs
 - `CALENDAR_API.md`: the Calendar API
-- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`: code walkthroughs (Vietnamese)
+- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`: code walkthroughs (Vietnamese)
 
 ## Team
 Nguyen Ba Tung Bach, Nguyen Duy Manh, Lam Trong Nhan

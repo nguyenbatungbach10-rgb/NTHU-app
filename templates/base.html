@@ -20,8 +20,8 @@
          class="{{ 'active' if request.endpoint == 'announcements' }}">Announcements</a>
       <a href="{{ url_for('gpa_page') }}"
          class="{{ 'active' if request.endpoint == 'gpa_page' }}">GPA</a>
-      {# Study sẽ thêm khi làm xong #}
-      <span class="soon" title="Coming soon">Study</span>
+      <a href="{{ url_for('study_page') }}"
+         class="{{ 'active' if request.endpoint == 'study_page' }}">Study</a>
 
       <span class="userbox">
         {% if current_user %}
