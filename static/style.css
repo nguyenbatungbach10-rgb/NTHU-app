@@ -230,3 +230,40 @@ dialog::backdrop { background: rgba(36, 27, 51, 0.45); }
 .btn.danger { background: #b3261e; }
 .btn.danger:hover { background: #8c1d18; }
 .btn[hidden], .pill[hidden] { display: none; }
+
+/* ---------- Credits & GPA ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+.stat-value { font-size: 1.9rem; font-weight: 700; color: var(--purple-dark); line-height: 1.1; }
+.stat-value small { font-size: 1rem; font-weight: 400; color: var(--muted); }
+.stat-note { font-size: 0.82rem; color: var(--muted); }
+.bar { height: 8px; background: var(--purple-soft); border-radius: 999px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--purple); border-radius: 999px; }
+
+.advice, .goal-box { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; }
+.advice h2, .goal-box h2 { margin: 0 0 8px; font-size: 1.1rem; color: var(--purple-dark); }
+.advice p { margin: 4px 0; }
+.bad { color: #b3261e; }
+.muted { color: var(--muted); }
+.goal-form { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.goal-form .field { margin: 0; min-width: 160px; }
+.goal-form .btn.small { margin-top: 0; }
+
+.semester { margin-bottom: 22px; }
+.semester-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; }
+.semester-head h2 { margin: 0; font-size: 1.15rem; color: var(--purple-dark); }
+.semester-stats { color: var(--muted); font-size: 0.88rem; flex: 1; }
+.semester .btn.small { margin-top: 0; }
+.courses { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.courses th, .courses td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+.courses th { background: var(--purple-soft); color: var(--purple-dark); font-size: 0.85rem; }
+.courses tr:last-child td { border-bottom: 0; }
+.courses .num { text-align: right; }
+.courses .btn.small { margin-top: 0; }
+.grade { display: inline-block; min-width: 2.2em; text-align: center; padding: 2px 8px; border-radius: 999px; background: var(--purple-soft); color: var(--purple-dark); font-weight: 600; font-size: 0.85rem; }
+.grade.fail { background: #fbe9e7; color: #b3261e; }
+.grade.planned { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-weight: 400; }
+.aim { margin-left: 8px; font-size: 0.8rem; color: var(--purple); }
+.field select { padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; color: var(--ink); background: #fff; width: 100%; }
+.field select:focus { outline: 2px solid var(--purple); outline-offset: 1px; }

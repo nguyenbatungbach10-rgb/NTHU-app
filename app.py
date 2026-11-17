@@ -39,6 +39,17 @@ from calendar_logic import (
     shift_month,
     validate_event,
 )
+from gpa_logic import (
+    DEFAULT_CREDITS_REQUIRED,
+    DEFAULT_TARGET_GPA,
+    GRADE_POINTS,
+    LETTERS,
+    current_semester,
+    overview,
+    semester_summary,
+    validate_course,
+    validate_goals,
+)
 from nthu_api import (
     category_counts,
     fetch_announcements,
@@ -317,6 +328,80 @@ def api_event(event_id):
     if updated is None:
         return jsonify({"error": "event not found"}), 404
     return jsonify(updated)
+
+
+# ======================= Credit & GPA: trang web =======================
+
+def load_goals(user_id):
+    """Mục tiêu đã lưu của người dùng, hoặc giá trị mặc định nếu chưa đặt."""
+    goals = db.get_goals(user_id)
+    if goals is None:
+        return {"target_gpa": DEFAULT_TARGET_GPA,
+                "credits_required": DEFAULT_CREDITS_REQUIRED, "is_default": True}
+    return dict(goals, is_default=False)
+
+
+@app.route("/gpa")
+@login_required
+def gpa_page():
+    """Trang Credit & GPA: GPA tích lũy, tiến độ tín chỉ, cần điểm bao nhiêu, từng học kỳ."""
+    courses = db.list_courses(g.user["id"])
+    goals = load_goals(g.user["id"])
+    return render_template(
+        "gpa.html",
+        overview=overview(courses, goals["target_gpa"], goals["credits_required"]),
+        semesters=list(reversed(semester_summary(courses))),  # học kỳ mới nhất trước
+        goals=goals,
+        letters=LETTERS,
+        grade_points=GRADE_POINTS,
+        default_semester=current_semester(date.today()),
+        has_courses=bool(courses),
+    )
+
+
+# ======================= Credit & GPA: API =======================
+
+@app.route("/api/courses", methods=["GET", "POST"])
+@login_required
+def api_courses():
+    """POST: thêm môn học. GET: danh sách môn học của bạn."""
+    if request.method == "POST":
+        course, error = validate_course(request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(db.add_course(g.user["id"], course)), 201
+    return jsonify(db.list_courses(g.user["id"]))
+
+
+@app.route("/api/courses/<int:course_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_course(course_id):
+    """PUT: sửa môn học. DELETE: xóa. Môn của người khác -> 404."""
+    if request.method == "DELETE":
+        if not db.delete_course(g.user["id"], course_id):
+            return jsonify({"error": "course not found"}), 404
+        return "", 204
+
+    course, error = validate_course(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    updated = db.update_course(g.user["id"], course_id, course)
+    if updated is None:
+        return jsonify({"error": "course not found"}), 404
+    return jsonify(updated)
+
+
+@app.route("/api/goals", methods=["GET", "PUT"])
+@login_required
+def api_goals():
+    """GET: mục tiêu hiện tại. PUT: đặt mục tiêu GPA và số tín chỉ tốt nghiệp."""
+    if request.method == "PUT":
+        goals, error = validate_goals(request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(db.set_goals(g.user["id"], goals))
+    goals = load_goals(g.user["id"])
+    return jsonify({"target_gpa": goals["target_gpa"], "credits_required": goals["credits_required"]})
 
 
 if __name__ == "__main__":

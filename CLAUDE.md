@@ -11,7 +11,8 @@ in simple words (the owner is a beginner), so we can answer TA questions.
 ## Features
 1. Personal Calendar & General Schedule - DONE (month view, add/edit/delete).
 2. Study planning - not built yet.
-3. Credit & GPA tracking - not built yet.
+3. Credit & GPA tracking - DONE (/gpa page: courses per semester, weighted GPA,
+   credit progress, needed average for a target GPA; gpa_logic.py + /api/courses, /api/goals).
 4. Campus Announcements & Deadline Tracker - fetch from the NTHU Data API,
    filter by office, keyword, language and category (Scholarship / Dorm /
    Careers / Registration / Events / Other, guessed from the title by
@@ -28,6 +29,8 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 - Python decides, JavaScript only displays. All validation lives in Python.
 - SQL only in db.py, always parameterized (?). Every query on events includes
   user_id so users can never touch each other's data.
+- Grade scale and passing rules live ONLY in gpa_logic.py (GRADE_POINTS, PASSING_POINTS).
+  Courses and goals queries also include user_id.
 - Every POST/PUT/DELETE needs the CSRF token (form field csrf_token or header
   X-CSRF-Token). API errors are JSON {"error": "..."}.
 - Never mutate the shared announcements cache; use copies (see mark_saved()).
@@ -36,15 +39,17 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 app.py                  routes, login/session, CSRF
 nthu_api.py             fetch / normalize / classify / filter announcements
 calendar_logic.py       validate_event, month grid, mark_saved (pure Python)
-db.py                   SQLite: users and events tables, all SQL
+gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
+db.py                   SQLite: users, events, courses, goals tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
 GIAI_THICH_ACCOUNT_CALENDAR.md  explanation of accounts, database, calendar
-templates/              base, home, announcements, calendar, login, signup,
+GIAI_THICH_GPA.md       explanation of the Credit & GPA feature
+templates/              base, home, announcements, calendar, gpa, login, signup,
                         _macros.html (Jinja macro shared by home and announcements)
 static/                 style.css (purple theme), app.js
-tests/                  pytest (57 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (105 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

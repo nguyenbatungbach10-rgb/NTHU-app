@@ -9,7 +9,9 @@ keep up with campus announcements and deadlines. I2P Final Project.
 - Campus Announcements & Deadline Tracker: live data from the NTHU Data API,
   filter by category, office, language or keyword, and save a deadline to your
   calendar with one click
-- Study planning and GPA tracking (in progress)
+- Credits & GPA: add courses per semester, weighted GPA on the NTHU scale (A+ = 4.3),
+  credit progress, and the average grade you need to reach a target GPA
+- Study planning (in progress)
 
 ## Run locally
 ```
@@ -31,7 +33,7 @@ python -m pytest
 
 ## Docs
 - `CALENDAR_API.md`: the Calendar API
-- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`: code walkthroughs (Vietnamese)
+- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`: code walkthroughs (Vietnamese)
 
 ## Team
 Nguyen Ba Tung Bach, Nguyen Duy Manh, Lam Trong Nhan

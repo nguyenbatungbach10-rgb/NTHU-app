@@ -18,9 +18,10 @@
          class="{{ 'active' if request.endpoint == 'calendar_page' }}">Calendar</a>
       <a href="{{ url_for('announcements') }}"
          class="{{ 'active' if request.endpoint == 'announcements' }}">Announcements</a>
-      {# Study và GPA sẽ thêm khi làm xong #}
+      <a href="{{ url_for('gpa_page') }}"
+         class="{{ 'active' if request.endpoint == 'gpa_page' }}">GPA</a>
+      {# Study sẽ thêm khi làm xong #}
       <span class="soon" title="Coming soon">Study</span>
-      <span class="soon" title="Coming soon">GPA</span>
 
       <span class="userbox">
         {% if current_user %}

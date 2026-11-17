@@ -104,3 +104,82 @@ if (dialog) {
     }
   });
 }
+
+// ---------- Trang GPA: hộp thoại môn học và form mục tiêu ----------
+const courseDialog = document.getElementById("course-dialog");
+
+if (courseDialog) {
+  const form = courseDialog.querySelector("form");
+  const heading = courseDialog.querySelector("h2");
+  const deleteButton = courseDialog.querySelector("[data-delete]");
+  const errorBox = courseDialog.querySelector(".form-error");
+  let editingId = null; // null = đang thêm mới
+
+  function openCourseDialog(course) {
+    editingId = course.id || null;
+    heading.textContent = editingId ? "Edit course" : "Add course";
+    form.elements.name.value = course.name || "";
+    form.elements.credits.value = course.credits || "3";
+    form.elements.semester.value = course.semester || "";
+    form.elements.grade.value = course.grade || "";
+    deleteButton.hidden = !editingId;
+    errorBox.textContent = "";
+    courseDialog.showModal();
+  }
+
+  document.querySelectorAll("[data-add-course]").forEach((button) => {
+    button.addEventListener("click", () => openCourseDialog({ semester: button.dataset.semester }));
+  });
+  document.querySelectorAll("[data-course]").forEach((button) => {
+    button.addEventListener("click", () => openCourseDialog(button.dataset));
+  });
+  courseDialog.querySelector("[data-cancel]").addEventListener("click", () => courseDialog.close());
+
+  form.addEventListener("submit", async (submitEvent) => {
+    submitEvent.preventDefault();
+    const payload = {
+      name: form.elements.name.value,
+      credits: form.elements.credits.value === "" ? null : Number(form.elements.credits.value),
+      semester: form.elements.semester.value,
+      grade: form.elements.grade.value,
+    };
+    try {
+      if (editingId) {
+        await api("PUT", `/api/courses/${editingId}`, payload);
+      } else {
+        await api("POST", "/api/courses", payload);
+      }
+      location.reload(); // Python tính lại toàn bộ số liệu
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+  });
+
+  deleteButton.addEventListener("click", async () => {
+    if (!confirm("Delete this course?")) return;
+    try {
+      await api("DELETE", `/api/courses/${editingId}`);
+      location.reload();
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+  });
+}
+
+const goalForm = document.getElementById("goal-form");
+
+if (goalForm) {
+  goalForm.addEventListener("submit", async (submitEvent) => {
+    submitEvent.preventDefault();
+    const errorBox = document.getElementById("goal-error");
+    try {
+      await api("PUT", "/api/goals", {
+        target_gpa: goalForm.elements.target_gpa.value === "" ? null : Number(goalForm.elements.target_gpa.value),
+        credits_required: goalForm.elements.credits_required.value === "" ? null : Number(goalForm.elements.credits_required.value),
+      });
+      location.reload();
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+  });
+}
