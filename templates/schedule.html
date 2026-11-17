@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly schedule - NTHU Campus Assistant{% endblock %}
+
+{# Một thẻ môn học. Dữ liệu cho JavaScript nằm trong data-*; Jinja tự escape nên an toàn. #}
+{% macro class_card(c) %}
+  <button class="class-card {{ 'conflict' if c.conflict }}" type="button" data-class
+          data-id="{{ c.id }}" data-name="{{ c.name }}" data-weekday="{{ c.weekday }}"
+          data-start="{{ c.start }}" data-end="{{ c.end }}" data-room="{{ c.room }}">
+    <span class="class-time">{{ c.start }}&ndash;{{ c.end }}</span>
+    <span class="class-name">{{ c.name }}</span>
+    {% if c.room %}<span class="class-room">{{ c.room }}</span>{% endif %}
+    {% if c.conflict %}<span class="class-warn">&#9888; overlaps another class</span>{% endif %}
+  </button>
+{% endmacro %}
+
+{% block content %}
+<div class="cal-bar">
+  <h1>Weekly schedule</h1>
+  <div class="cal-nav">
+    <button class="btn small" type="button" data-add-class data-weekday="{{ today_weekday }}">+ Add class</button>
+  </div>
+</div>
+
+<section class="stats">
+  <article class="stat">
+    <span class="stat-label">Classes</span>
+    <span class="stat-value">{{ class_count }}</span>
+    <span class="stat-note">each week</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">In class</span>
+    <span class="stat-value">{{ total_hours }}</span>
+    <span class="stat-note">per week</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">Time clashes</span>
+    <span class="stat-value {{ 'bad' if conflict_count }}">{{ conflict_count }}</span>
+    <span class="stat-note">{{ 'classes overlap, see red cards' if conflict_count else 'none' }}</span>
+  </article>
+  <article class="stat">
+    <span class="stat-label">Today</span>
+    <span class="stat-value">{{ today_classes | length }}</span>
+    <span class="stat-note">class{{ '' if today_classes | length == 1 else 'es' }} on {{ weekday_names[today_weekday] }}</span>
+  </article>
+</section>
+
+{% if not has_classes %}
+  <p class="empty">No classes yet. Press <strong>+ Add class</strong> to add each course once;
+     it will repeat on the same weekday every week.</p>
+{% endif %}
+
+<section class="panel">
+  <h2>Today &middot; {{ weekday_names[today_weekday] }}</h2>
+  {% if today_classes %}
+    <div class="today-list">{% for c in today_classes %}{{ class_card(c) }}{% endfor %}</div>
+  {% else %}
+    <p class="empty">No classes today.</p>
+  {% endif %}
+</section>
+
+<div class="week-wrap">
+  <div class="week" style="--days: {{ days | length }}">
+    {% for day in days %}
+      <div class="week-col {{ 'today' if day.weekday == today_weekday }}">
+        <div class="week-head">
+          <span>{{ day.name }}</span>
+          <button class="cal-add" type="button" data-add-class data-weekday="{{ day.weekday }}"
+                  aria-label="Add class on {{ day.name }}">+</button>
+        </div>
+        {% for c in day.classes %}{{ class_card(c) }}{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<dialog id="class-dialog">
+  <form class="dialog-form">
+    <h2>Add class</h2>
+    <div class="field">
+      <label for="cl-name">Course name</label>
+      <input id="cl-name" name="name" maxlength="100" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="cl-weekday">Day</label>
+        <select id="cl-weekday" name="weekday">
+          {% for name in weekday_names %}<option value="{{ loop.index0 }}">{{ name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="cl-room">Room <small>(optional)</small></label>
+        <input id="cl-room" name="room" maxlength="100">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="cl-start">Start</label>
+        <input id="cl-start" name="start" type="time" required>
+      </div>
+      <div class="field">
+        <label for="cl-end">End</label>
+        <input id="cl-end" name="end" type="time" required>
+      </div>
+    </div>
+    <p class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" data-cancel>Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

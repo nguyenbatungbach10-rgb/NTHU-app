@@ -6,6 +6,7 @@ keep up with campus announcements and deadlines. I2P Final Project.
 ## Features
 - Accounts: sign up, log in, log out
 - Personal Calendar: month view, add / edit / delete events
+- Weekly Schedule: class timetable that repeats every week, with warnings when two classes overlap
 - Campus Announcements & Deadline Tracker: live data from the NTHU Data API,
   filter by category, office, language or keyword, and save a deadline to your
   calendar with one click
@@ -35,7 +36,7 @@ python -m pytest
 
 ## Docs
 - `CALENDAR_API.md`: the Calendar API
-- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`: code walkthroughs (Vietnamese)
+- `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`, `GIAI_THICH_SCHEDULE.md`: code walkthroughs (Vietnamese)
 
 ## Team
 Nguyen Ba Tung Bach, Nguyen Duy Manh, Lam Trong Nhan

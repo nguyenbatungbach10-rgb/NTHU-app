@@ -88,6 +88,20 @@ CREATE TABLE IF NOT EXISTS study_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_date ON study_sessions (user_id, date);
+
+-- Thời khóa biểu tuần: mỗi dòng là một môn lặp lại vào một thứ cố định
+CREATE TABLE IF NOT EXISTS classes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    weekday    INTEGER NOT NULL,             -- 0 = Thứ 2 ... 6 = Chủ nhật
+    start      TEXT NOT NULL,                -- HH:MM
+    "end"      TEXT NOT NULL,                -- HH:MM ("end" là từ khóa SQL nên phải đặt trong ngoặc kép)
+    room       TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_classes_user ON classes (user_id);
 """
 
 EVENT_COLUMNS = "id, title, date, time, description, source_url"
@@ -479,5 +493,54 @@ def delete_session(user_id, session_id):
     cursor = conn.execute(
         "DELETE FROM study_sessions WHERE id = ? AND user_id = ?", (session_id, user_id)
     )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+# ---------- classes (thời khóa biểu tuần) ----------
+
+CLASS_COLUMNS = 'id, name, weekday, start, "end" AS end, room'
+
+
+def add_class(user_id, item):
+    """Thêm một môn vào thời khóa biểu, trả về môn vừa tạo."""
+    conn = get_db()
+    cursor = conn.execute(
+        'INSERT INTO classes (user_id, name, weekday, start, "end", room) VALUES (?, ?, ?, ?, ?, ?)',
+        (user_id, item["name"], item["weekday"], item["start"], item["end"], item["room"]),
+    )
+    conn.commit()
+    return get_class(user_id, cursor.lastrowid)
+
+
+def get_class(user_id, class_id):
+    """Không tồn tại HOẶC không thuộc user_id -> None."""
+    row = get_db().execute(
+        f"SELECT {CLASS_COLUMNS} FROM classes WHERE id = ? AND user_id = ?", (class_id, user_id)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def list_classes(user_id):
+    rows = get_db().execute(
+        f"SELECT {CLASS_COLUMNS} FROM classes WHERE user_id = ? ORDER BY weekday, start, id", (user_id,)
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_class(user_id, class_id, item):
+    conn = get_db()
+    cursor = conn.execute(
+        'UPDATE classes SET name = ?, weekday = ?, start = ?, "end" = ?, room = ? '
+        "WHERE id = ? AND user_id = ?",
+        (item["name"], item["weekday"], item["start"], item["end"], item["room"], class_id, user_id),
+    )
+    conn.commit()
+    return get_class(user_id, class_id) if cursor.rowcount else None
+
+
+def delete_class(user_id, class_id):
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM classes WHERE id = ? AND user_id = ?", (class_id, user_id))
     conn.commit()
     return cursor.rowcount > 0

@@ -9,7 +9,8 @@ it and to build the core features ourselves. When you write code, explain it
 in simple words (the owner is a beginner), so we can answer TA questions.
 
 ## Features
-1. Personal Calendar & General Schedule - DONE (month view, add/edit/delete).
+1. Personal Calendar & General Schedule - DONE (month view with events and task deadlines;
+   /schedule weekly class timetable with overlap warnings; schedule_logic.py + /api/classes).
 2. Study planning - DONE (/study page: tasks with subtasks and due dates, subjects with
    materials, study-time log; study_logic.py + /api/subjects, /api/tasks, /api/sessions).
    Open tasks with a due date are also shown (read-only) on the Calendar.
@@ -43,20 +44,22 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 app.py                  routes, login/session, CSRF
 nthu_api.py             fetch / normalize / classify / filter announcements
 calendar_logic.py       validate_event, month grid, mark_saved (pure Python)
+schedule_logic.py       validate_class, weekly timetable, overlap detection (pure Python)
 study_logic.py          validate subject/task/session, task tree, week totals (pure Python)
 gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
-                        study_sessions tables, all SQL
+                        study_sessions, classes tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
 GIAI_THICH_ACCOUNT_CALENDAR.md  explanation of accounts, database, calendar
 GIAI_THICH_GPA.md       explanation of the Credit & GPA feature
 GIAI_THICH_STUDY.md     explanation of the Study planning feature
-templates/              base, home, announcements, calendar, gpa, study, login, signup,
+GIAI_THICH_SCHEDULE.md  explanation of the weekly timetable
+templates/              base, home, announcements, calendar, schedule, gpa, study, login, signup,
                         _macros.html (Jinja macro shared by home and announcements)
 static/                 style.css (purple theme), app.js
-tests/                  pytest (151 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (186 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

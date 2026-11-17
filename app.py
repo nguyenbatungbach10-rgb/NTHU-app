@@ -50,6 +50,13 @@ from gpa_logic import (
     validate_course,
     validate_goals,
 )
+from schedule_logic import (
+    build_week,
+    classes_on,
+    validate_class,
+    visible_days,
+    weekly_minutes,
+)
 from study_logic import (
     build_task_tree,
     format_minutes,
@@ -413,6 +420,59 @@ def api_goals():
         return jsonify(db.set_goals(g.user["id"], goals))
     goals = load_goals(g.user["id"])
     return jsonify({"target_gpa": goals["target_gpa"], "credits_required": goals["credits_required"]})
+
+
+# ======================= Thời khóa biểu tuần: trang web =======================
+
+@app.route("/schedule")
+@login_required
+def schedule_page():
+    """Thời khóa biểu tuần: mỗi thứ một cột, các môn xếp theo giờ, môn trùng giờ được tô cảnh báo."""
+    classes = db.list_classes(g.user["id"])
+    days = build_week(classes)
+    today = date.today()
+    return render_template(
+        "schedule.html",
+        days=visible_days(days),
+        today_weekday=today.weekday(),
+        today_classes=[c for c in days[today.weekday()]["classes"]],
+        has_classes=bool(classes),
+        conflict_count=len({c["id"] for d in days for c in d["classes"] if c["conflict"]}),
+        total_hours=format_minutes(weekly_minutes(classes)),
+        class_count=len(classes),
+        weekday_names=[d["name"] for d in days],
+    )
+
+
+# ======================= Thời khóa biểu tuần: API =======================
+
+@app.route("/api/classes", methods=["GET", "POST"])
+@login_required
+def api_classes():
+    """POST: thêm môn vào thời khóa biểu. GET: danh sách môn của bạn."""
+    if request.method == "POST":
+        item, error = validate_class(request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(db.add_class(g.user["id"], item)), 201
+    return jsonify(db.list_classes(g.user["id"]))
+
+
+@app.route("/api/classes/<int:class_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_class(class_id):
+    """PUT: sửa môn. DELETE: xóa. Môn của người khác -> 404."""
+    if request.method == "DELETE":
+        if not db.delete_class(g.user["id"], class_id):
+            return jsonify({"error": "class not found"}), 404
+        return "", 204
+    item, error = validate_class(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+    updated = db.update_class(g.user["id"], class_id, item)
+    if updated is None:
+        return jsonify({"error": "class not found"}), 404
+    return jsonify(updated)
 
 
 # ======================= Study planning: trang web =======================

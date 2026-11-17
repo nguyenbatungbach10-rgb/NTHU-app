@@ -317,3 +317,29 @@ document.querySelectorAll("[data-toggle]").forEach((box) => {
     }
   });
 });
+
+// ---------- Trang Schedule: hộp thoại thêm / sửa / xóa môn học ----------
+const openClass = crudDialog(
+  "class-dialog", "/api/classes", "class",
+  (form, data) => {
+    form.elements.name.value = data.name || "";
+    form.elements.weekday.value = data.weekday === undefined ? "0" : data.weekday;
+    form.elements.start.value = data.start || "";
+    form.elements.end.value = data.end || "";
+    form.elements.room.value = data.room || "";
+  },
+  (form) => ({
+    name: form.elements.name.value,
+    weekday: Number(form.elements.weekday.value),
+    start: form.elements.start.value,
+    end: form.elements.end.value,
+    room: form.elements.room.value,
+  }),
+);
+
+document.querySelectorAll("[data-add-class]").forEach((button) => {
+  button.addEventListener("click", () => openClass({ weekday: button.dataset.weekday }));
+});
+document.querySelectorAll("[data-class]").forEach((card) => {
+  card.addEventListener("click", () => openClass(card.dataset));
+});
