@@ -9,10 +9,11 @@
     year_bounds()     -> ngày đầu của năm này và năm sau (để truy vấn SQL)
     build_year()      -> dựng 12 lịch tháng thu nhỏ cho trang xem cả năm
     mark_saved()      -> đánh dấu thông báo nào đã được lưu vào Calendar
+    today_tw()        -> ngày hôm nay theo giờ Đài Loan (máy chủ PythonAnywhere chạy giờ UTC)
 """
 import calendar
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 from deadline_logic import suggest_date
 
@@ -153,6 +154,19 @@ def build_month(year, month, events, today, tasks=()):
     return weeks
 
 
+TAIWAN_TZ = timezone(timedelta(hours=8), "Asia/Taipei")   # Đài Loan không đổi giờ mùa hè
+
+
+def today_tw(now=None):
+    """Ngày hôm nay ở Đài Loan (UTC+8), dù máy chủ đặt ở múi giờ nào.
+
+    Máy chủ PythonAnywhere chạy giờ UTC: nếu dùng date.today() thì từ 0:00 đến 8:00 sáng ở Đài Loan
+    web vẫn tưởng là hôm qua. `now` để test truyền một thời điểm cố định.
+    """
+    now = now or datetime.now(timezone.utc)
+    return now.astimezone(TAIWAN_TZ).date()
+
+
 def parse_year(text):
     """"2026" -> 2026. Sai định dạng, None hoặc ngoài khoảng MIN_YEAR..MAX_YEAR -> None."""
     if not isinstance(text, str) or not re.fullmatch(r"\d{4}", text):
@@ -213,10 +227,12 @@ def shorten_title(title):
     return title[:MAX_TITLE - 1] + "…"
 
 
-def mark_saved(items, saved):
+def mark_saved(items, saved, today=None):
     """Trả về BẢN SAO của items, thêm `event_title`, `event_date`, `date_from_title`, `saved`.
 
     `event_date` là ngày sẽ lưu vào lịch: ngày đọc được từ tiêu đề (deadline_logic), hoặc ngày đăng.
+    Thông báo KHÔNG có ngày đăng (khoảng 60% dữ liệu thật) vẫn lưu được nếu tiêu đề có ngày: khi đó
+    dùng `today` làm mốc để đoán năm. Không có ngày nào thì `event_date` = "" (nút lưu bị khóa).
     `saved` là tập các cặp (tiêu đề sự kiện, ngày) mà người dùng đã lưu.
     Phải copy (dict(item, ...)) vì danh sách gốc nằm trong cache dùng chung
     cho mọi người dùng; sửa trực tiếp sẽ làm lộ trạng thái của người này sang người khác.
@@ -224,7 +240,12 @@ def mark_saved(items, saved):
     result = []
     for item in items:
         event_title = shorten_title(item["title"])
-        suggestion = suggest_date(item["title"], item["date"])
+        if item["date"]:
+            suggestion = suggest_date(item["title"], item["date"])
+        else:
+            suggestion = suggest_date(item["title"], today.isoformat()) if today else {"from_title": False}
+            if not suggestion["from_title"]:
+                suggestion = {"date": "", "from_title": False}
         result.append(dict(
             item,
             event_title=event_title,

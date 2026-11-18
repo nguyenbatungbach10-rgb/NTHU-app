@@ -10,6 +10,7 @@ File này chỉ chứa logic Python (không có Flask) để dễ test và dễ 
     paginate()             -> cắt danh sách thành từng trang
     list_offices()         -> danh sách office để đổ vào ô chọn
     category_counts()      -> số thông báo của từng chủ đề
+    upcoming_dates()       -> thông báo có ngày (hạn chót, ngày diễn ra) ghi trong tiêu đề sắp tới, gần nhất trước
 
 Cấu trúc JSON thật của GET /announcements (mỗi phần tử là MỘT ĐƠN VỊ):
     [
@@ -26,10 +27,14 @@ Cấu trúc JSON thật của GET /announcements (mỗi phần tử là MỘT Đ
 """
 import json
 import math
+import re
 import time
+from datetime import date, timedelta
 from pathlib import Path
 
 import requests
+
+from deadline_logic import DEADLINE_WORDS, suggest_date
 
 BASE_URL = "https://api.nthusa.tw"
 CACHE_SECONDS = 300  # nhớ kết quả 5 phút để không gọi API liên tục
@@ -60,27 +65,49 @@ SAMPLE_ANNOUNCEMENTS = [
 ]
 
 
-# Chủ đề và từ khóa (tiếng Anh + tiếng Hoa). API không có trường chủ đề,
-# nên ta đoán từ tiêu đề. Thứ tự quan trọng: chủ đề nào khớp trước thì được chọn.
+# Chủ đề và từ khóa (tiếng Anh + tiếng Hoa). API không có trường chủ đề, nên ta đoán từ tiêu đề.
+# Thứ tự quan trọng: chủ đề nào khớp trước thì được chọn (ví dụ "招生說明會" là Admissions, không phải Events).
+# Danh sách được thử trên 4.527 thông báo thật (2026-11-18): nhóm "Other" giảm từ 71% xuống khoảng 40%.
 CATEGORY_KEYWORDS = [
-    ("Scholarship", ["scholarship", "fellowship", "獎學金", "助學", "獎助"]),
-    ("Dorm", ["dorm", "housing", "宿舍", "住宿"]),
-    ("Careers", ["career", "internship", "recruit", "hiring",
-                 "徵才", "招募", "實習", "求才", "就業"]),
-    ("Registration", ["registration", "add/drop", "course selection", "enrollment",
-                      "選課", "加退選", "退選", "註冊"]),
-    ("Events", ["event", "lecture", "talk", "workshop", "seminar", "competition",
-                "concert", "exhibition", "festival",
-                "活動", "演講", "講座", "研討", "工作坊", "競賽", "比賽", "展覽", "音樂會"]),
+    ("Scholarship", ["scholarship", "scholarships", "fellowship", "grant", "grants", "financial aid",
+                     "獎學金", "助學", "獎助", "補助", "獎勵金"]),
+    ("Dorm", ["dorm", "dorms", "dormitory", "housing", "宿舍", "住宿"]),
+    ("Careers", ["career", "careers", "internship", "intern", "recruit", "recruitment", "hiring", "job", "jobs",
+                 "vacancy", "postdoc", "徵才", "招募", "實習", "求才", "就業", "誠徵", "徵聘", "工讀", "職缺", "博士後",
+                 "兼任助理", "專任助理"]),
+    ("Admissions", ["admission", "admissions", "招生", "入學", "甄試"]),
+    ("Registration", ["registration", "add/drop", "course selection", "enrollment", "tuition", "graduation",
+                      "credit transfer", "leave of absence", "選課", "加退選", "退選", "註冊", "學雜費", "畢業",
+                      "學分", "學位", "抵免", "休學", "轉系", "輔系", "雙主修"]),
+    ("Exchange", ["exchange", "study abroad", "交換", "出國", "海外", "雙聯"]),
+    ("Campus notices", ["outage", "water supply", "water supplies", "construction", "maintenance", "disinfection",
+                        "pruning", "closure", "parking", "shuttle", "停電", "停水", "施工", "修繕", "整修", "維修",
+                        "消毒", "噴藥", "修剪", "管制", "封閉", "道路", "停車", "斷網", "網路中斷", "系統維護", "停機",
+                        "水質", "公車", "機車證", "門禁"]),
+    ("Events", ["event", "events", "lecture", "lectures", "talk", "talks", "workshop", "seminar", "competition",
+                "contest", "concert", "exhibition", "festival", "forum", "symposium", "conference", "ceremony",
+                "screening", "info session", "活動", "演講", "講座", "研討", "工作坊", "競賽", "比賽", "展覽", "音樂會",
+                "說明會", "論壇", "營隊", "講堂", "典禮", "表演", "放映", "報名", "讀書會", "研習", "發表會"]),
 ]
 OTHER = "Other"
+CATEGORY_NAMES = [name for name, _ in CATEGORY_KEYWORDS] + [OTHER]
+
+
+def _keyword_pattern(word):
+    """Từ tiếng Anh phải khớp NGUYÊN TỪ ("camp" không được khớp "campus"); chữ Hán thì chỉ cần có trong tiêu đề."""
+    if word.isascii():
+        return re.compile(r"(?<![a-z])" + re.escape(word) + r"(?![a-z])")
+    return re.compile(re.escape(word))
+
+
+_CATEGORY_PATTERNS = [(name, [_keyword_pattern(w) for w in words]) for name, words in CATEGORY_KEYWORDS]
 
 
 def classify(title):
     """Đoán chủ đề của một thông báo từ tiêu đề. Không khớp từ khóa nào -> "Other"."""
     text = title.lower()  # tiếng Anh không phân biệt hoa/thường
-    for category, words in CATEGORY_KEYWORDS:
-        if any(word in text for word in words):
+    for category, patterns in _CATEGORY_PATTERNS:
+        if any(p.search(text) for p in patterns):
             return category
     return OTHER
 
@@ -101,12 +128,31 @@ def find_list(data):
     return []
 
 
+DATE_RE = re.compile(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})")
+
+
+def clean_date(value):
+    """Ngày đăng -> "YYYY-MM-DD", hoặc "" nếu không phải ngày thật.
+
+    Có đơn vị gửi số thứ tự ("1", "8") vào trường ngày; nếu giữ lại, "8" > "2026-..." khi so sánh chữ
+    nên bài cũ bị xếp lên đầu danh sách "mới nhất". Cũng nhận "2026/11/18", "2026.11.18".
+    """
+    match = DATE_RE.fullmatch(str(value or "").strip())
+    if not match:
+        return ""
+    try:
+        return date(int(match[1]), int(match[2]), int(match[3])).isoformat()
+    except ValueError:
+        return ""                                # ví dụ 2026-02-30
+
+
 def normalize(data):
     """Dàn phẳng: mỗi bài trong articles của mỗi đơn vị thành một dòng.
 
-    Kết quả: list các dict {title, link, date, office, language}, mới nhất trước.
+    Kết quả: list các dict {title, link, date, office, language, category}, mới nhất trước.
+    Bỏ bài trùng (cùng đơn vị, tiêu đề và ngày): API có đơn vị gửi một bài nhiều lần.
     """
-    items = []
+    items, seen = [], set()
     for department in find_list(data):
         if not isinstance(department, dict):
             continue
@@ -115,15 +161,21 @@ def normalize(data):
         for article in department.get("articles") or []:
             if not isinstance(article, dict) or not article.get("title"):
                 continue  # bỏ qua mục hỏng hoặc không có tiêu đề
+            title = str(article["title"]).strip()
+            day = clean_date(article.get("date"))
+            key = (office, title, day)
+            if key in seen:
+                continue
+            seen.add(key)
             items.append({
-                "title": str(article["title"]),
+                "title": title,
                 "link": article.get("link") or "",
-                "date": article.get("date") or "",
+                "date": day,
                 "office": office,
                 "language": language,
-                "category": classify(str(article["title"])),
+                "category": classify(title),
             })
-    items.sort(key=lambda a: a["date"], reverse=True)  # ngày dạng ISO nên so sánh chữ là đúng
+    items.sort(key=lambda a: a["date"], reverse=True)  # ngày dạng ISO nên so sánh chữ là đúng; "" xuống cuối
     return items
 
 
@@ -187,13 +239,19 @@ def is_sample(notice):
     return isinstance(notice, dict) and notice.get("kind") == "sample"
 
 
+GROUP_PREFIX = "group:"        # giá trị ô chọn "cả nhóm", ví dụ "group:教務處"
+
+
 def filter_announcements(items, office="", q="", lang="", category=""):
-    """Lọc theo office (khớp chính xác), từ khóa q (trong tiêu đề hoặc office),
-    ngôn ngữ và chủ đề. Tham số nào để trống thì không lọc theo tham số đó."""
+    """Lọc theo office (khớp chính xác, hoặc "group:教務處" = mọi đơn vị thuộc 教務處), từ khóa q
+    (trong tiêu đề hoặc office), ngôn ngữ và chủ đề. Tham số nào để trống thì không lọc theo tham số đó."""
     q = q.lower().strip()
+    group = office[len(GROUP_PREFIX):] if office.startswith(GROUP_PREFIX) else None
     result = []
     for item in items:
-        if office and item["office"] != office:
+        if group is not None and office_group(item["office"]) != group:
+            continue
+        if office and group is None and item["office"] != office:
             continue
         if lang and item["language"] != lang:
             continue
@@ -208,6 +266,27 @@ def filter_announcements(items, office="", q="", lang="", category=""):
 def list_offices(items):
     """Danh sách office không trùng, xếp A-Z."""
     return sorted({item["office"] for item in items})
+
+
+UNIT_ENDINGS = re.compile(r"處|院|室|中心")
+
+
+def office_group(office):
+    """Đơn vị lớn của một đơn vị: cắt sau chữ 處 / 院 / 室 / 中心 đầu tiên.
+
+    "教務處註冊組" -> "教務處", "電機資訊學院光電工程研究所" -> "電機資訊學院",
+    "國際產學營運總中心NVIDIA-..." -> "國際產學營運總中心". Không có các chữ đó (ví dụ tên tiếng Anh) -> giữ nguyên.
+    """
+    match = UNIT_ENDINGS.search(office)
+    return office[:match.end()] if match else office
+
+
+def group_offices(offices):
+    """[{"name": đơn vị lớn, "offices": [các đơn vị con]}], xếp A-Z, để làm <optgroup> cho 100+ đơn vị."""
+    groups = {}
+    for office in offices:
+        groups.setdefault(office_group(office), []).append(office)
+    return [{"name": name, "offices": sorted(members)} for name, members in sorted(groups.items())]
 
 
 def category_counts(items):
@@ -226,3 +305,36 @@ def paginate(items, page, per_page=PER_PAGE):
     page = min(max(page, 1), total_pages)  # ép page nằm trong khoảng 1..total_pages
     start = (page - 1) * per_page
     return items[start:start + per_page], page, total_pages
+
+
+# ---------- hạn chót / ngày sắp tới đọc từ tiêu đề ----------
+
+_dates_memo = {"key": None, "rows": []}
+
+
+def _all_title_dates(items, today):
+    """Mọi thông báo có ngày trong tiêu đề từ hôm nay trở đi (tính một lần cho mỗi danh sách và mỗi ngày)."""
+    key = (id(items), len(items), today)
+    if _dates_memo["key"] == key:
+        return _dates_memo["rows"]
+    start = today.isoformat()
+    rows = []
+    for item in items:
+        found = suggest_date(item["title"], item["date"] or start)   # không có ngày đăng -> hôm nay làm mốc
+        if found["from_title"] and found["date"] >= start:
+            due = date.fromisoformat(found["date"])
+            rows.append(dict(item, due=found["date"], days_left=(due - today).days,
+                             is_deadline=bool(DEADLINE_WORDS.search(item["title"]))))
+    rows.sort(key=lambda r: (r["due"], r["title"]))
+    _dates_memo.update(key=key, rows=rows)
+    return rows
+
+
+def upcoming_dates(items, today, days=60):
+    """Thông báo có ngày ghi trong tiêu đề nằm trong [hôm nay, hôm nay + days], ngày gần nhất trước.
+
+    Mỗi kết quả là BẢN SAO có thêm: due (YYYY-MM-DD), days_left (còn mấy ngày),
+    is_deadline (tiêu đề có chữ 截止 / 期限 / deadline...: đây là hạn chót chứ không chỉ là ngày diễn ra).
+    """
+    end = (today + timedelta(days=days)).isoformat()
+    return [row for row in _all_title_dates(items, today) if row["due"] <= end]

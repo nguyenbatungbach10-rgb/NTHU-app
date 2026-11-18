@@ -1,5 +1,6 @@
 """Test API thời khóa biểu tuần, trang Schedule và cô lập dữ liệu giữa người dùng."""
 from datetime import date
+from calendar_logic import today_tw  # noqa: E402
 
 CLASS = {"name": "Calculus", "weekday": 0, "start": "10:10", "end": "12:00", "room": "R101"}
 
@@ -78,7 +79,7 @@ def test_schedule_page_shows_classes_and_conflicts(browser):
 
 
 def test_schedule_page_shows_todays_classes(browser):
-    today = date.today().weekday()
+    today = today_tw().weekday()
     browser.api("POST", "/api/classes", dict(CLASS, name="TodayClass", weekday=today))
     browser.api("POST", "/api/classes", dict(CLASS, name="OtherDay", weekday=(today + 1) % 7))
     html = browser.client.get("/schedule").data.decode()

@@ -28,7 +28,8 @@ python app.py
 Open http://127.0.0.1:5000
 
 The SQLite database is created automatically in `instance/app.db`.
-For deployment, set the `SECRET_KEY` environment variable.
+For deployment, set the `SECRET_KEY` environment variable and `PRODUCTION=1`
+(Secure cookies, real client IP behind the PythonAnywhere proxy), and turn on Force HTTPS.
 
 ## Tests
 ```
@@ -37,6 +38,7 @@ python -m pytest
 ```
 
 ## Docs
+- `GIAI_THICH_CAITIEN.md`: fixes and improvements after the review (deadlines view, login lockout, ...)
 - `CALENDAR_API.md`: the Calendar API
 - `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`, `GIAI_THICH_SCHEDULE.md`, `GIAI_THICH_DEADLINE.md`: code walkthroughs (Vietnamese)
 

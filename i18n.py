@@ -40,6 +40,15 @@ ZH = {
     "Description": "說明", "Delete": "刪除", "Cancel": "取消", "Save": "儲存", "Edit": "編輯",
     "Add": "新增", "Name": "名稱", "None": "無", "none": "沒有", "Search": "搜尋", "Go": "前往",
     "Overdue": "已逾期", "Map": "地圖",
+    "Get started": "開始使用", "{done} of {total} done": "已完成 {done}/{total}", "done": "已完成",
+    "Add your weekly classes": "加入每週課程", "Set your graduation credits and target GPA": "設定畢業學分和目標 GPA",
+    "Save an upcoming deadline to your calendar": "把一個即將到來的截止日存到行事曆", "Add a study task": "新增一個讀書待辦",
+    "Classes, deadlines, grades, campus map and NTHU announcements in one place.": "課表、截止日、成績、校園地圖和清大公告，一次看清楚。",
+    "Page not found": "找不到這個頁面",
+    "This page does not exist or has moved. Check the address or start from the home page.": "這個頁面不存在或已經移動。請檢查網址，或從首頁開始。",
+    "Something went wrong": "發生錯誤",
+    "The server hit an error. Please try again in a moment.": "伺服器發生錯誤，請稍後再試。",
+    "Go to the home page": "回到首頁", "Open the campus map": "開啟校園地圖",
 
     # ---------- trang chủ ----------
     "Classes today": "今天的課", "Show {name} on the map": "在地圖上顯示{name}",
@@ -69,6 +78,7 @@ ZH = {
     "Confirm password": "確認密碼", "Already have an account?": "已經有帳號了？",
     "Welcome! Your account is ready.": "歡迎！你的帳號已建立。",
     "Invalid email or password.": "電子郵件或密碼錯誤。",
+    "Too many failed attempts. Try again in {n} minutes.": "登入失敗次數過多，請於 {n} 分鐘後再試。",
     "You have been logged out.": "你已登出。",
     "Please enter a valid email address.": "請輸入有效的電子郵件地址。",
     "Password must be 8 to 128 characters.": "密碼長度必須是 8 到 128 個字元。",
@@ -88,9 +98,15 @@ ZH = {
     "All languages": "所有語言", "Search keyword...": "搜尋關鍵字…", "Filter": "篩選", "Clear": "清除",
     "{count} of {total} announcements, newest first": "共 {total} 則公告，顯示 {count} 則，最新的在前",
     "Newer": "較新", "Older": "較舊", "Page {page} of {pages}": "第 {page} 頁，共 {pages} 頁",
+    "View": "檢視", "All announcements": "所有公告", "Upcoming deadlines": "即將截止",
+    "All of {name}": "{name}（全部）",
+    "{count} announcements with a date in the next {days} days, soonest first. Dates are read from the titles, so check the original.":
+        "未來 {days} 天內有日期的公告共 {count} 則，最近的在前。日期取自標題，請以原始公告為準。",
+    "Previous": "上一頁", "Later": "下一頁", "Deadline": "截止", "today": "今天", "tomorrow": "明天",
+    "in {n} days": "還有 {n} 天",
     "No announcements match your filter.": "沒有符合篩選條件的公告。",
     "Scholarship": "獎學金", "Dorm": "宿舍", "Careers": "職涯", "Registration": "註冊與選課",
-    "Events": "活動", "Other": "其他",
+    "Events": "活動", "Other": "其他", "Admissions": "招生入學", "Exchange": "交換與出國", "Campus notices": "校園事務",
 
     # ---------- lịch ----------
     "Pick another month": "選擇其他月份", "Previous year": "上一年", "Next year": "下一年",
@@ -197,7 +213,7 @@ JS_KEYS = [
 ERRORS = {
     "JSON body must be an object": "資料格式錯誤（需要 JSON 物件）",
     "Invalid or missing CSRF token": "安全驗證失敗，請重新整理頁面再試一次",
-    "login required": "請先登入",
+    "login required": "請先登入", "not found": "找不到", "server error": "伺服器錯誤",
     "a subtask cannot have its own subtasks": "步驟不能再有自己的步驟",
     "class not found": "找不到這堂課", "course not found": "找不到這門課", "event not found": "找不到這個活動",
     "place not found": "找不到這個地點", "session not found": "找不到這筆讀書紀錄",

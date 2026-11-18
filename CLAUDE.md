@@ -19,9 +19,12 @@ in simple words (the owner is a beginner), so we can answer TA questions.
 3. Credit & GPA tracking - DONE (/gpa page: courses per semester, weighted GPA,
    credit progress, needed average for a target GPA; gpa_logic.py + /api/courses, /api/goals).
 4. Campus Announcements & Deadline Tracker - fetch from the NTHU Data API,
-   filter by office, keyword, language and category (Scholarship / Dorm /
-   Careers / Registration / Events / Other, guessed from the title by
-   classify()), latest 5 on the home page, "Save to Calendar" button.
+   filter by office (grouped by parent unit, "group:<unit>" filters a whole unit) keyword, language and
+   category (Scholarship / Dorm / Careers / Admissions / Registration / Exchange / Campus notices /
+   Events / Other, guessed from the title by classify(); English keywords match whole words),
+   latest 5 on the home page, "Save to Calendar" button. Dates are cleaned (clean_date) and
+   duplicates (office, title, date) dropped in normalize(). "Upcoming deadlines" view
+   (?view=deadlines, upcoming_dates(): next 60 days, home page 30 days).
    The button saves on the date found in the title (deadline_logic.suggest_date: Republic of
    China years like 115年10月08日, 2026-11-20, 11月20日, "Nov 20"...), else on the posted date,
    and the page says "date found in the title" so users can check the guess.
@@ -32,7 +35,12 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    abbreviation or room ("Delta 205", "綜三 B101"), category filter, nearest food / bus / shop,
    today's classes linked to buildings; map_logic.py + /api/places, /api/places/search, /api/places/<id>).
    Place data: data/nthu_osm.csv from OpenStreetMap (refresh with python tools/fetch_map_data.py).
-Accounts: sign-up / log-in / log-out with sessions.
+Accounts: sign-up / log-in / log-out with sessions. Login lockout: 5 failures per email+IP or 20 per IP
+   in 15 minutes -> 429 (login_guard.py decides, db.login_failures stores). PRODUCTION=1 env var ->
+   Secure cookies + ProxyFix (real client IP on PythonAnywhere).
+Dates: "today" is always calendar_logic.today_tw() (Asia/Taipei, UTC+8); never date.today().
+Errors: 404/500 -> templates/error.html (JSON for /api/). Home: onboarding checklist (home_logic.py),
+   name suggestions <datalist> on GPA/Study.
 UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), home page
    "today" panel (classes today + tasks due, study_logic.due_today).
 Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in templates, cookie "lang",
@@ -69,13 +77,15 @@ deadline_logic.py       read deadline/event dates from announcement titles (pure
 schedule_logic.py       validate_class, weekly timetable, overlap detection (pure Python)
 study_logic.py          validate subject/task/session, task tree, week totals (pure Python)
 gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
+home_logic.py           onboarding checklist, course/subject name suggestions (pure Python)
+login_guard.py          login lockout rules (pure Python)
 i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
 tools/fetch_map_data.py downloads a fresh data/nthu_osm.csv from the Overpass API
 tools/save_announcements.py  saves real announcements to data/announcements_snapshot.json (run where the API is reachable)
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
-                        study_sessions, classes tables, all SQL
+                        study_sessions, classes, login_failures tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
@@ -87,10 +97,11 @@ GIAI_THICH_DEADLINE.md  explanation of reading dates from announcement titles
 GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours, today panel
 GIAI_THICH_MAP.md       explanation of the campus map
 GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
-templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup,
+GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines view, offices, onboarding, lockout)
+templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, error,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (385 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (462 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
@@ -106,9 +117,9 @@ pip install -r requirements.txt
 python app.py                 -> http://127.0.0.1:5000
 python -m pytest              -> all tests
 The database is created automatically in instance/app.db (not committed).
-Before deploying, set the SECRET_KEY environment variable.
+Before deploying, set the SECRET_KEY and PRODUCTION=1 environment variables (WSGI file) and turn on Force HTTPS.
 
 ## Conventions
 - Keep functions short, with a one-line docstring (Vietnamese or English).
-- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~54% (2026-11-18, without tests).
+- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~56% of non-blank lines (2026-11-18, without tests).
 - Add a test for every new behaviour, especially security-related ones.

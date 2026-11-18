@@ -41,3 +41,39 @@ def test_api_returns_filtered_json(app):
     data = app.test_client().get("/api/announcements?lang=en&limit=1").get_json()
     assert len(data) == 1
     assert data[0]["title"] == "Scholarship news"
+
+
+# ---------- trang lỗi và favicon ----------
+
+def test_404_page_uses_site_layout(app):
+    response = app.test_client().get("/does-not-exist")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 404 and "Page not found" in html and 'id="menu-button"' in html
+
+
+def test_404_page_in_chinese(app):
+    html = app.test_client().get("/nope", headers={"Accept-Language": "zh-TW"}).get_data(as_text=True)
+    assert "找不到這個頁面" in html
+
+
+def test_api_404_is_json(app):
+    response = app.test_client().get("/api/does-not-exist")
+    assert response.status_code == 404 and response.get_json() == {"error": "not found"}
+
+
+def test_500_page(app, monkeypatch):
+    def broken():
+        raise RuntimeError("boom")
+    monkeypatch.setattr(app_module, "fetch_announcements", broken)
+    app.config["PROPAGATE_EXCEPTIONS"] = False
+    response = app.test_client().get("/")
+    assert response.status_code == 500 and "Something went wrong" in response.get_data(as_text=True)
+    assert "boom" not in response.get_data(as_text=True)          # không lộ chi tiết lỗi cho người dùng
+
+
+def test_favicon(app):
+    client = app.test_client()
+    response = client.get("/favicon.ico")
+    assert response.status_code == 301 and response.headers["Location"].endswith("/static/favicon.svg")
+    assert client.get("/static/favicon.svg").status_code == 200
+    assert 'rel="icon"' in client.get("/").get_data(as_text=True)

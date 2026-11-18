@@ -133,7 +133,8 @@
     <h2>{{ _('Add course') }}</h2>
     <div class="field">
       <label for="co-name">{{ _('Course name') }}</label>
-      <input id="co-name" name="name" maxlength="100" required>
+      <input id="co-name" name="name" maxlength="100" required list="course-names" autocomplete="off">
+      <datalist id="course-names">{% for n in name_suggestions %}<option value="{{ n }}">{% endfor %}</datalist>
     </div>
     <div class="field-row">
       <div class="field">

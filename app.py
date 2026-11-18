@@ -13,6 +13,7 @@ import os
 import re
 import secrets
 import sqlite3
+import time
 from datetime import date, timedelta
 from functools import lru_cache, wraps
 
@@ -27,10 +28,13 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+import home_logic
 import i18n
+import login_guard
 import map_logic
 from calendar_logic import (
     MAX_YEAR,
@@ -38,6 +42,7 @@ from calendar_logic import (
     WEEKDAYS,
     build_month,
     mark_saved,
+    today_tw,
     month_bounds,
     month_label,
     parse_month,
@@ -78,6 +83,9 @@ from study_logic import (
 )
 from nthu_api import (
     category_counts,
+    GROUP_PREFIX,
+    group_offices,
+    upcoming_dates,
     fetch_announcements,
     is_sample,
     filter_announcements,
@@ -90,9 +98,20 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
 app.config["DATABASE"] = os.path.join(app.instance_path, "app.db")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"  # cookie không gửi kèm request từ trang web khác
+
+# Trên server thật (PythonAnywhere) đặt biến môi trường PRODUCTION=1 trong file WSGI. Khi đó:
+#   - cookie chỉ gửi qua HTTPS (Secure), kẻ nghe lén Wi-Fi không lấy được phiên đăng nhập
+#   - đọc IP thật của người dùng từ header X-Forwarded-For do proxy của PythonAnywhere thêm vào
+#     (máy mình chạy python app.py thì không có proxy, nên KHÔNG bật để người dùng không giả được IP)
+PRODUCTION = os.environ.get("PRODUCTION") == "1"
+app.config["SESSION_COOKIE_SECURE"] = PRODUCTION
+if PRODUCTION:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 app.teardown_appcontext(db.close_db)
 
 LATEST_ON_HOME = 5
+DEADLINE_DAYS = 60          # trang Announcements > Upcoming deadlines: 60 ngày tới
+HOME_DEADLINE_DAYS = 30     # trang chủ: hạn trong 30 ngày tới
 UPCOMING_ON_HOME = 5
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -187,9 +206,11 @@ def settings():
     one_year = 365 * 24 * 3600
     lang, theme = request.form.get("lang"), request.form.get("theme")
     if lang in i18n.LANGUAGES:
-        response.set_cookie("lang", lang, max_age=one_year, samesite="Lax", httponly=True)
+        response.set_cookie("lang", lang, max_age=one_year, samesite="Lax", httponly=True,
+                            secure=app.config["SESSION_COOKIE_SECURE"])
     if theme in i18n.THEMES:
-        response.set_cookie("theme", theme, max_age=one_year, samesite="Lax", httponly=True)
+        response.set_cookie("theme", theme, max_age=one_year, samesite="Lax", httponly=True,
+                            secure=app.config["SESSION_COOKIE_SECURE"])
     return response
 
 
@@ -220,16 +241,24 @@ def home():
     items, notice = fetch_announcements()
     # Dữ liệu mẫu thì không hiện trên trang chủ cho khỏi nhầm; bản lưu là thông báo thật nên vẫn hiện
     latest = [] if is_sample(notice) else items[:LATEST_ON_HOME]
+    soon = [] if is_sample(notice) else upcoming_dates(items, today_tw(), HOME_DEADLINE_DAYS)[:LATEST_ON_HOME]
 
     upcoming, today_classes, due = [], [], []
-    today = date.today()
+    today = today_tw()
     if g.user:
         upcoming = db.upcoming_events(g.user["id"], today.isoformat(), UPCOMING_ON_HOME)
         today_classes = map_logic.class_stops(classes_on(db.list_classes(g.user["id"]), today.weekday()),
                                               campus_places()[0])
         tomorrow = (today + timedelta(days=1)).isoformat()
         due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
-    return render_template("home.html", latest=latest, upcoming=upcoming, notice=notice,
+    steps = None
+    if g.user:
+        steps = home_logic.onboarding(db.user_counts(g.user["id"]))
+        targets = {"schedule": url_for("schedule_page"), "gpa": url_for("gpa_page"),
+                   "deadlines": url_for("announcements", view="deadlines"), "study": url_for("study_page")}
+        for step in steps["steps"]:
+            step["url"] = targets[step["target"]]
+    return render_template("home.html", latest=latest, upcoming=upcoming, notice=notice, soon=soon, onboarding=steps,
                            today=today, today_classes=today_classes, due_tasks=due)
 
 
@@ -243,15 +272,18 @@ def announcements():
     office = request.args.get("office", "").strip()
     lang = request.args.get("lang", "").strip()
     cat = request.args.get("cat", "").strip()
+    view = "deadlines" if request.args.get("view") == "deadlines" else "all"
     page = request.args.get("page", 1, type=int)  # không phải số -> dùng 1
 
     items, notice = fetch_announcements()
-    filtered = filter_announcements(items, office=office, q=q, lang=lang, category=cat)
+    # "Upcoming deadlines": chỉ các thông báo có ngày trong tiêu đề, 60 ngày tới, gần nhất trước
+    source = upcoming_dates(items, today_tw(), DEADLINE_DAYS) if view == "deadlines" else items
+    filtered = filter_announcements(source, office=office, q=q, lang=lang, category=cat)
     page_items, page, total_pages = paginate(filtered, page)
 
     # Đánh dấu thông báo nào người dùng đã lưu vào Calendar (mỗi người một kết quả riêng)
     saved = db.saved_keys(g.user["id"]) if g.user else set()
-    page_items = mark_saved(page_items, saved)
+    page_items = mark_saved(page_items, saved, today_tw())
 
     return render_template(
         "announcements.html",
@@ -260,12 +292,15 @@ def announcements():
         total=len(items),      # tổng số mục
         page=page,
         total_pages=total_pages,
-        offices=list_offices(items),
+        office_groups=group_offices(list_offices(items)),
+        group_prefix=GROUP_PREFIX,
         categories=category_counts(items),
         q=q,
         office=office,
         lang=lang,
         cat=cat,
+        view=view,
+        deadline_days=DEADLINE_DAYS,
         notice=notice,
     )
 
@@ -331,11 +366,20 @@ def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        ip = request.remote_addr or ""
+        now = time.time()
+        # Sai quá nhiều lần gần đây -> không kiểm tra mật khẩu nữa, bảo chờ (login_guard.py quyết định)
+        account_times, ip_times = db.login_failure_times(email, ip, now - login_guard.WINDOW_SECONDS)
+        wait = login_guard.lockout_minutes(account_times, ip_times, now)
+        if wait:
+            return render_template("login.html", email=email, next_url=next_url, locked_minutes=wait), 429
         user = db.get_user_by_email(email)
         if user is None or not check_password_hash(user["password_hash"], password):
+            db.add_login_failure(email, ip, now, login_guard.WINDOW_SECONDS)
             # Cùng một thông báo cho "sai email" và "sai mật khẩu" để không lộ email nào đã đăng ký
             flash("Invalid email or password.", "error")
             return render_template("login.html", email=email, next_url=next_url), 401
+        db.clear_login_failures(email, ip)
         session.clear()
         session["user_id"] = user["id"]
         return redirect(safe_next(next_url))
@@ -356,7 +400,7 @@ def logout():
 @login_required
 def calendar_page():
     """Lịch tháng của người dùng. ?month=YYYY-MM để chọn tháng."""
-    today = date.today()
+    today = today_tw()
     year, month = parse_month(request.args.get("month")) or (today.year, today.month)
     start, end = month_bounds(year, month)
     events = db.list_events(g.user["id"], start, end)
@@ -388,7 +432,7 @@ def calendar_page():
 @login_required
 def calendar_year_page():
     """Lịch cả năm: 12 tháng thu nhỏ, bấm vào một tháng để mở lịch tháng. ?year=YYYY để chọn năm."""
-    today = date.today()
+    today = today_tw()
     year = parse_year(request.args.get("year", "")) or today.year
     start, end = year_bounds(year)
     events = db.list_events(g.user["id"], start, end)
@@ -465,6 +509,10 @@ def gpa_page():
     """Trang Credit & GPA: GPA tích lũy, tiến độ tín chỉ, cần điểm bao nhiêu, từng học kỳ."""
     courses = db.list_courses(g.user["id"])
     goals = load_goals(g.user["id"])
+    # Gợi ý tên môn khi gõ: môn trong thời khóa biểu, môn học, môn đã nhập GPA
+    suggestions = home_logic.name_suggestions([c["name"] for c in db.list_classes(g.user["id"])],
+                                              [s["name"] for s in db.list_subjects(g.user["id"])],
+                                              [c["name"] for c in courses])
     return render_template(
         "gpa.html",
         overview=overview(courses, goals["target_gpa"], goals["credits_required"]),
@@ -472,8 +520,9 @@ def gpa_page():
         goals=goals,
         letters=LETTERS,
         grade_points=GRADE_POINTS,
-        default_semester=current_semester(date.today()),
+        default_semester=current_semester(today_tw()),
         has_courses=bool(courses),
+        name_suggestions=suggestions,
     )
 
 
@@ -530,7 +579,7 @@ def schedule_page():
     """Thời khóa biểu tuần: mỗi thứ một cột, các môn xếp theo giờ, môn trùng giờ được tô cảnh báo."""
     classes = db.list_classes(g.user["id"])
     days = build_timetable(classes)
-    today = date.today()
+    today = today_tw()
     return render_template(
         "schedule.html",
         days=visible_days(days),
@@ -583,7 +632,7 @@ def api_class(class_id):
 def study_page():
     """Trang Study: việc cần làm (có việc con), môn học + tài liệu, thời gian học."""
     uid = g.user["id"]
-    today = date.today()
+    today = today_tw()
     subjects = db.list_subjects(uid)
     names = {subject["id"]: subject["name"] for subject in subjects}
     tasks = db.list_tasks(uid)
@@ -601,6 +650,8 @@ def study_page():
         week_rows=minutes_by_subject(sessions, names, week_start, week_end),
         sessions=recent,
         today=today.isoformat(),
+        name_suggestions=home_logic.name_suggestions([c["name"] for c in db.list_classes(uid)],
+                                                     [c["name"] for c in db.list_courses(uid)]),
     )
 
 
@@ -743,7 +794,7 @@ def map_page():
         focus = found[0] if found else None
     stops = []
     if g.user:
-        classes = classes_on(db.list_classes(g.user["id"]), date.today().weekday())
+        classes = classes_on(db.list_classes(g.user["id"]), today_tw().weekday())
         stops = map_logic.class_stops(classes, places)
     return render_template(
         "map.html",
@@ -785,6 +836,40 @@ def api_place(place_id):
     d["floors_text"] = _("{n} floors", n=d["levels"]) if d["levels"] else ""
     d["directions_label"] = _("Walking directions in Google Maps")
     return jsonify(d)
+
+
+# ======================= trang lỗi và favicon =======================
+
+ERROR_TEXT = {
+    404: ("Page not found", "This page does not exist or has moved. Check the address or start from the home page."),
+    500: ("Something went wrong", "The server hit an error. Please try again in a moment."),
+}
+
+
+def error_page(code):
+    """Trang lỗi theo giao diện của web; đường dẫn /api/ thì trả JSON {"error": ...} như các API khác."""
+    heading, message = ERROR_TEXT[code]
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "not found" if code == 404 else "server error"}), code
+    return render_template("error.html", code=code, heading=heading, message=message), code
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """Trang 404."""
+    return error_page(404)
+
+
+@app.errorhandler(500)
+def server_error(error):
+    """Trang 500 (chi tiết lỗi vẫn ghi trong error log của server)."""
+    return error_page(500)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """Trình duyệt luôn hỏi /favicon.ico: chuyển sang biểu tượng SVG để không còn lỗi 404 trong console."""
+    return redirect(url_for("static", filename="favicon.svg"), code=301)
 
 
 if __name__ == "__main__":

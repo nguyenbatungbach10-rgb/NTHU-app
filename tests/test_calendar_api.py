@@ -1,5 +1,6 @@
 """Test Calendar API, trang Calendar và việc cô lập dữ liệu giữa các người dùng."""
 from datetime import date
+from calendar_logic import today_tw  # noqa: E402
 
 EVENT = {"title": "Midterm exam", "date": "2026-11-20", "time": "09:00",
          "description": "Room 101", "source_url": "https://www.nthu.edu.tw/x"}
@@ -108,7 +109,7 @@ def test_calendar_page_escapes_html_in_titles(browser):
 
 
 def test_home_shows_my_upcoming_events(browser):
-    today = date.today().isoformat()
+    today = today_tw().isoformat()
     browser.api("POST", "/api/events", {"title": "Study group", "date": today})
     html = browser.client.get("/").get_data(as_text=True)
     assert "Coming up" in html and "Study group" in html

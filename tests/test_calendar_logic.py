@@ -253,3 +253,42 @@ def test_build_year_does_not_change_inputs():
     build_year(2026, events, date(2026, 1, 1), tasks)
     assert events == [{"date": "2026-03-05", "title": "x"}]
     assert tasks == [{"due_date": "2026-03-05", "title": "t"}]
+
+
+# ---------- giờ Đài Loan và thông báo không có ngày đăng ----------
+from datetime import datetime, timezone  # noqa: E402
+
+from calendar_logic import mark_saved, today_tw  # noqa: E402
+
+
+def test_today_tw_is_utc_plus_8():
+    # 16:44 UTC ngày 18 = 00:44 ngày 19 ở Đài Loan (đúng lúc máy chủ UTC còn tưởng là ngày 18)
+    assert today_tw(datetime(2026, 11, 18, 16, 44, tzinfo=timezone.utc)).isoformat() == "2026-11-19"
+    assert today_tw(datetime(2026, 11, 18, 15, 59, tzinfo=timezone.utc)).isoformat() == "2026-11-18"
+    assert today_tw(datetime(2026, 12, 31, 16, 0, tzinfo=timezone.utc)).isoformat() == "2027-01-01"
+
+
+def _item(title, day=""):
+    return {"title": title, "date": day, "link": "", "office": "x", "language": "zh-tw", "category": "Other"}
+
+
+def test_mark_saved_undated_item_uses_title_date_with_today_as_reference():
+    rows = mark_saved([_item("獎學金申請 12/20 截止"), _item("申請至12月20日止")], set(), date(2026, 11, 19))
+    assert [r["event_date"] for r in rows] == ["", "2026-12-20"]       # "12/20" (chỉ số) chưa đọc được
+    assert rows[1]["date_from_title"] is True
+
+
+def test_mark_saved_undated_item_without_title_date_cannot_be_saved():
+    rows = mark_saved([_item("宿舍修繕系統啟用")], set(), date(2026, 11, 19))
+    assert rows[0]["event_date"] == "" and rows[0]["date_from_title"] is False
+    assert mark_saved([_item("Deadline Nov 20")], set())[0]["event_date"] == ""   # không có today: như cũ
+
+
+def test_mark_saved_undated_item_ignores_old_title_dates():
+    rows = mark_saved([_item("2024年3月1日 舊公告")], set(), date(2026, 11, 19))
+    assert rows[0]["event_date"] == ""
+
+
+def test_mark_saved_dated_item_unchanged():
+    rows = mark_saved([_item("Deadline Nov 20", "2026-11-10")], set(), date(2026, 11, 19))
+    assert rows[0]["event_date"] == "2026-11-20"

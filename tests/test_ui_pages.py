@@ -1,5 +1,6 @@
 """Test trang lịch cả năm, bảng chọn nhanh tháng, menu 3 gạch và khối "hôm nay" ở trang chủ."""
 from datetime import date, timedelta
+from calendar_logic import today_tw  # noqa: E402
 
 
 def _get(browser, url):
@@ -29,7 +30,7 @@ def test_year_page_counts_events_and_deadlines(browser):
 
 
 def test_year_page_bad_or_out_of_range_year_falls_back_to_this_year(browser):
-    this_year = date.today().year
+    this_year = today_tw().year
     for bad in ["garbage", "", "99999", "1800", "-1", "20.5"]:
         response = browser.client.get(f"/calendar/year?year={bad}")
         assert response.status_code == 200
@@ -92,7 +93,7 @@ def test_each_feature_page_has_its_own_theme(browser):
 # ---------- khối "hôm nay" ở trang chủ ----------
 
 def test_home_today_panel_shows_todays_classes_and_due_tasks(browser):
-    today = date.today()
+    today = today_tw()
     yesterday = (today - timedelta(days=1)).isoformat()
     tomorrow = (today + timedelta(days=1)).isoformat()
     browser.api("POST", "/api/classes", {"name": "Calculus", "weekday": today.weekday(), "start": "10:10", "end": "12:00", "room": "R101"})
@@ -114,7 +115,7 @@ def test_home_today_panel_empty_states(browser):
 
 
 def test_home_today_panel_hides_other_users_data(browser, make_browser):
-    today = date.today()
+    today = today_tw()
     browser.api("POST", "/api/classes", {"name": "Secret class", "weekday": today.weekday(), "start": "10:10", "end": "12:00"})
     browser.api("POST", "/api/tasks", {"title": "Secret task", "due_date": today.isoformat()})
     other = make_browser()

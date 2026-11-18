@@ -45,6 +45,19 @@
     </article>
   </div>
 </section>
+{% if onboarding and onboarding.show %}
+<section class="onboard" aria-labelledby="onboard-title">
+  <h2 id="onboard-title">{{ _('Get started') }} <small>{{ _('{done} of {total} done', done=onboarding.done, total=onboarding.total) }}</small></h2>
+  <ol>
+    {% for step in onboarding.steps %}
+      <li class="{{ 'done' if step.done }}">
+        {% if step.done %}<span class="check" aria-hidden="true">&#10003;</span>{% endif %}
+        <a href="{{ step.url }}">{{ _(step.label) }}</a>{% if step.done %} <span class="sr-only">({{ _('done') }})</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
 {% else %}
 <section class="hero">
   <div class="hero-text">
@@ -115,6 +128,20 @@
     <p class="empty">{{ _('No upcoming events. Add one in the calendar or save a deadline from the announcements.') }}
        <a href="{{ url_for('calendar_page') }}">{{ _('Open calendar') }}</a></p>
   {% endif %}
+</section>
+{% endif %}
+
+{% if soon %}
+<section class="latest">
+  <div class="latest-head">
+    <h2>{{ _('Upcoming deadlines') }}</h2>
+    <a href="{{ url_for('announcements', view='deadlines') }}">{{ _('View all') }}</a>
+  </div>
+  <ul class="list">
+    {% for item in soon %}
+      {{ announcement(item, show_save=false) }}
+    {% endfor %}
+  </ul>
 </section>
 {% endif %}
 

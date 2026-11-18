@@ -97,15 +97,14 @@ So sánh token dùng `hmac.compare_digest` (so sánh thời gian không đổi),
 3. Nút đổi thành "Saved ✓". Lần sau mở trang, `saved_keys()` lấy các cặp `(title, date)` đã lưu và `mark_saved()` đánh dấu sẵn.
 4. `mark_saved()` trả về **bản sao** của danh sách. Danh sách thông báo nằm trong cache dùng chung cho mọi người; nếu sửa trực tiếp, trạng thái "đã lưu" của người này có thể lộ sang người khác.
 
-Hiện tại nút dùng **ngày đăng** của thông báo làm ngày sự kiện. Đọc hạn chót (deadline) từ tiêu đề là bước cải tiến tiếp theo.
+Nút lưu vào ngày đọc được từ tiêu đề (xem `GIAI_THICH_DEADLINE.md`), không có thì dùng ngày đăng.
 
 ## 8. Hạn chế đã biết (nói thật với TA)
 
-- Chưa giới hạn số lần đăng nhập sai (brute force), chưa có quên mật khẩu hay xác minh email.
-- `SECRET_KEY` mặc định chỉ dùng để phát triển. Khi deploy phải đặt biến môi trường `SECRET_KEY` và bật HTTPS (khi đó thêm `SESSION_COOKIE_SECURE = True`).
+- Đã giới hạn đăng nhập sai (5 lần / 15 phút, xem `GIAI_THICH_CAITIEN.md`), nhưng chưa có quên mật khẩu hay xác minh email.
+- `SECRET_KEY` mặc định chỉ dùng để phát triển. Khi deploy phải đặt biến môi trường `SECRET_KEY`, bật Force HTTPS và đặt `PRODUCTION=1` (cookie có cờ Secure).
 - SQLite là một file, hợp với dự án học tập và ít người dùng, không hợp tải lớn hay nhiều máy chủ.
-- "Hôm nay" lấy theo giờ của máy chạy server.
-- Chưa có Study planning và GPA tracking.
+- "Hôm nay" tính theo giờ Đài Loan (`today_tw()`), không theo giờ máy server.
 
 ## 9. Câu hỏi TA có thể hỏi (và gợi ý trả lời)
 

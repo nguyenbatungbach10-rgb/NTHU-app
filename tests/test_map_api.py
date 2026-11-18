@@ -1,5 +1,6 @@
 """Test trang /map và các API địa điểm."""
 from datetime import date
+from calendar_logic import today_tw  # noqa: E402
 
 CLASS = {"name": "Calculus", "start": "10:10", "end": "12:00", "room": "Delta 205"}
 
@@ -57,23 +58,23 @@ def test_api_place_details_and_404(make_browser):
 
 
 def test_todays_classes_on_map(browser):
-    browser.api("POST", "/api/classes", dict(CLASS, weekday=date.today().weekday()))
-    browser.api("POST", "/api/classes", dict(CLASS, name="Mystery", room="Somewhere 9", weekday=date.today().weekday()))
-    browser.api("POST", "/api/classes", dict(CLASS, name="Tomorrow", weekday=(date.today().weekday() + 1) % 7))
+    browser.api("POST", "/api/classes", dict(CLASS, weekday=today_tw().weekday()))
+    browser.api("POST", "/api/classes", dict(CLASS, name="Mystery", room="Somewhere 9", weekday=today_tw().weekday()))
+    browser.api("POST", "/api/classes", dict(CLASS, name="Tomorrow", weekday=(today_tw().weekday() + 1) % 7))
     html = browser.client.get("/map").get_data(as_text=True)
     assert "Today&#39;s classes" in html and 'data-place="r3815072"' in html
     assert "Somewhere 9: building not found" in html and "Tomorrow" not in html
 
 
 def test_todays_classes_are_private(browser, make_browser):
-    browser.api("POST", "/api/classes", dict(CLASS, name="Secret class", weekday=date.today().weekday()))
+    browser.api("POST", "/api/classes", dict(CLASS, name="Secret class", weekday=today_tw().weekday()))
     other = make_browser()
     other.signup("b@example.com")
     assert "Secret class" not in other.client.get("/map").get_data(as_text=True)
 
 
 def test_home_links_todays_class_to_map(browser):
-    browser.api("POST", "/api/classes", dict(CLASS, weekday=date.today().weekday()))
+    browser.api("POST", "/api/classes", dict(CLASS, weekday=today_tw().weekday()))
     html = browser.client.get("/").get_data(as_text=True)
     assert "/map?place=r3815072" in html
 

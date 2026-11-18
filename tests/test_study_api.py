@@ -1,5 +1,6 @@
 """Test API Study (môn học, việc, buổi học), trang Study và cô lập dữ liệu giữa người dùng."""
 from datetime import date
+from calendar_logic import today_tw  # noqa: E402
 
 
 def make_subject(b, name="Calculus", notes=""):
@@ -202,7 +203,7 @@ def test_study_page_empty_state(browser):
 
 
 def test_study_page_shows_data_and_numbers(browser):
-    today = date.today().isoformat()
+    today = today_tw().isoformat()
     subject = make_subject(browser, "Physics")
     parent = make_task(browser, title="Lab report", subject_id=subject["id"], due_date="2020-01-01").get_json()
     make_task(browser, title="Write intro", parent_id=parent["id"])

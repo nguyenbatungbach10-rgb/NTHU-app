@@ -178,7 +178,8 @@
     <h2>{{ _('Add subject') }}</h2>
     <div class="field">
       <label for="sb-name">{{ _('Name') }}</label>
-      <input id="sb-name" name="name" maxlength="100" required>
+      <input id="sb-name" name="name" maxlength="100" required list="subject-names" autocomplete="off">
+      <datalist id="subject-names">{% for n in name_suggestions %}<option value="{{ n }}">{% endfor %}</datalist>
     </div>
     <div class="field">
       <label for="sb-notes">{{ _('Materials & notes') }} <small>{{ _('(links, books)') }}</small></label>

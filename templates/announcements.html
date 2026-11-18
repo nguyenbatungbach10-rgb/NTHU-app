@@ -6,6 +6,14 @@
 {% block content %}
 <h1>{{ _('Campus Announcements') }}</h1>
 
+{# Hai cách xem; các bộ lọc được giữ khi đổi qua lại #}
+<nav class="view-tabs" aria-label="{{ _('View') }}">
+  <a href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None) }}"
+     {% if view != 'deadlines' %}aria-current="page"{% endif %}>{{ _('All announcements') }}</a>
+  <a href="{{ url_for('announcements', view='deadlines', q=q or None, office=office or None, lang=lang or None, cat=cat or None) }}"
+     {% if view == 'deadlines' %}aria-current="page"{% endif %}>{{ _('Upcoming deadlines') }}</a>
+</nav>
+
 {# notice do nthu_api.fetch_announcements() trả về: None = dữ liệu trực tiếp #}
 {% if notice %}
   <div class="alert">
@@ -19,6 +27,7 @@
 
 {# Form dùng method GET: khi bấm Filter, trình duyệt gọi /announcements?office=...&cat=...&lang=...&q=... #}
 <form class="filters" method="get" action="{{ url_for('announcements') }}">
+  {% if view == 'deadlines' %}<input type="hidden" name="view" value="deadlines">{% endif %}
   <select name="cat" aria-label="{{ _('Category') }}">
     <option value="">{{ _('All categories') }}</option>
     {% for name, n in categories %}
@@ -27,8 +36,18 @@
   </select>
   <select name="office" aria-label="{{ _('Office') }}">
     <option value="">{{ _('All offices') }}</option>
-    {% for name in offices %}
-      <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
+    {# Hơn 100 đơn vị: gom theo đơn vị lớn (Python tính trong group_offices) #}
+    {% for g in office_groups %}
+      {% if g.offices | length == 1 and g.offices[0] == g.name %}
+        <option value="{{ g.name }}" {{ 'selected' if g.name == office }}>{{ g.name }}</option>
+      {% else %}
+        <optgroup label="{{ g.name }}">
+          <option value="{{ group_prefix ~ g.name }}" {{ 'selected' if group_prefix ~ g.name == office }}>{{ _('All of {name}', name=g.name) }}</option>
+          {% for name in g.offices %}
+            <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
     {% endfor %}
   </select>
   <select name="lang" aria-label="{{ _('Language') }}">
@@ -39,11 +58,15 @@
   <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Search keyword...') }}">
   <button class="btn" type="submit">{{ _('Filter') }}</button>
   {% if q or office or lang or cat %}
-    <a class="clear" href="{{ url_for('announcements') }}">{{ _('Clear') }}</a>
+    <a class="clear" href="{{ url_for('announcements', view=view if view == 'deadlines' else None) }}">{{ _('Clear') }}</a>
   {% endif %}
 </form>
 
-<p class="count">{{ _('{count} of {total} announcements, newest first', count=count, total=total) }}</p>
+{% if view == 'deadlines' %}
+  <p class="count">{{ _('{count} announcements with a date in the next {days} days, soonest first. Dates are read from the titles, so check the original.', count=count, days=deadline_days) }}</p>
+{% else %}
+  <p class="count">{{ _('{count} of {total} announcements, newest first', count=count, total=total) }}</p>
+{% endif %}
 
 {% if items %}
   <ul class="list">
@@ -59,14 +82,14 @@
     <nav class="pager">
       {% if page > 1 %}
         <a class="btn small"
-           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; {{ _('Newer') }}</a>
+           href="{{ url_for('announcements', view=view if view == 'deadlines' else None, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; {{ _('Previous') if view == 'deadlines' else _('Newer') }}</a>
       {% else %}
         <span></span>
       {% endif %}
       <span class="page-info">{{ _('Page {page} of {pages}', page=page, pages=total_pages) }}</span>
       {% if page < total_pages %}
         <a class="btn small"
-           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">{{ _('Older') }} &rarr;</a>
+           href="{{ url_for('announcements', view=view if view == 'deadlines' else None, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">{{ _('Later') if view == 'deadlines' else _('Older') }} &rarr;</a>
       {% else %}
         <span></span>
       {% endif %}

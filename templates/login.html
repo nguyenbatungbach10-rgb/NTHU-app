@@ -7,6 +7,10 @@
   <h1>{{ _('Log in') }}</h1>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="next" value="{{ next_url }}">
+  {% if locked_minutes %}
+    {# Do login_guard.py tính: sai quá nhiều lần trong 15 phút #}
+    <div class="flash error" role="alert">{{ _('Too many failed attempts. Try again in {n} minutes.', n=locked_minutes) }}</div>
+  {% endif %}
 
   <div class="field">
     <label for="email">{{ _('Email') }}</label>

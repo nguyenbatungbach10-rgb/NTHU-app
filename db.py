@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS classes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_classes_user ON classes (user_id);
+
+-- Các lần đăng nhập sai gần đây (login_guard.py quyết định có khóa hay không)
+CREATE TABLE IF NOT EXISTS login_failures (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    ip    TEXT NOT NULL,
+    at    REAL NOT NULL                    -- giây, time.time()
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_failures_ip ON login_failures (ip, at);
 """
 
 EVENT_COLUMNS = "id, title, date, time, description, source_url"
@@ -149,6 +159,33 @@ def get_user_by_email(email):
         "SELECT id, email, password_hash FROM users WHERE email = ?", (email,)
     ).fetchone()
     return dict(row) if row else None
+
+
+# ---------- đăng nhập sai (chống đoán mật khẩu) ----------
+
+def add_login_failure(email, ip, now, keep_seconds):
+    """Ghi một lần đăng nhập sai và xóa luôn các bản ghi quá cũ cho bảng không phình ra."""
+    conn = get_db()
+    conn.execute("DELETE FROM login_failures WHERE at <= ?", (now - keep_seconds,))
+    conn.execute("INSERT INTO login_failures (email, ip, at) VALUES (?, ?, ?)", (email, ip, now))
+    conn.commit()
+
+
+def login_failure_times(email, ip, since):
+    """Trả về (các lần sai của email này từ ip này, các lần sai từ ip này) kể từ `since`."""
+    conn = get_db()
+    account = [row["at"] for row in conn.execute(
+        "SELECT at FROM login_failures WHERE email = ? AND ip = ? AND at > ?", (email, ip, since))]
+    by_ip = [row["at"] for row in conn.execute(
+        "SELECT at FROM login_failures WHERE ip = ? AND at > ?", (ip, since))]
+    return account, by_ip
+
+
+def clear_login_failures(email, ip):
+    """Đăng nhập đúng: xóa các lần sai của email này từ ip này."""
+    conn = get_db()
+    conn.execute("DELETE FROM login_failures WHERE email = ? AND ip = ?", (email, ip))
+    conn.commit()
 
 
 def get_user(user_id):
@@ -544,3 +581,19 @@ def delete_class(user_id, class_id):
     cursor = conn.execute("DELETE FROM classes WHERE id = ? AND user_id = ?", (class_id, user_id))
     conn.commit()
     return cursor.rowcount > 0
+
+
+# ======================= số liệu cho trang chủ =======================
+
+COUNTED_TABLES = ("classes", "events", "tasks", "courses", "goals")
+
+
+def user_counts(user_id):
+    """Số dòng của người dùng trong từng bảng, ví dụ {"classes": 3, "events": 0, ...}.
+
+    Tên bảng ghép vào câu SQL chỉ lấy từ COUNTED_TABLES (do code viết sẵn, không phải dữ liệu người dùng),
+    còn user_id vẫn truyền bằng dấu ? như mọi câu SQL khác.
+    """
+    db = get_db()
+    return {table: db.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id = ?", (user_id,)).fetchone()[0]
+            for table in COUNTED_TABLES}

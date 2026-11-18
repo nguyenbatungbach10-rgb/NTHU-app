@@ -24,8 +24,16 @@
       {{ item.title }}
     {% endif %}
   </h3>
+  {% if item.due is defined %}
+    {# Từ trang "Upcoming deadlines": ngày đọc từ tiêu đề và số ngày còn lại (Python tính) #}
+    <p class="due {{ 'soon' if item.days_left <= 7 }}">
+      <strong>{{ _('Deadline') if item.is_deadline else _('Date') }}: {{ item.due }}</strong>
+      &middot; {% if item.days_left == 0 %}{{ _('today') }}{% elif item.days_left == 1 %}{{ _('tomorrow') }}{% else %}{{ _('in {n} days', n=item.days_left) }}{% endif %}
+    </p>
+  {% endif %}
   {% if show_save %}
-    {% if not item.date %}
+    {% set save_date = item.event_date or item.date %}
+    {% if not save_date %}
       <button class="btn small" type="button" disabled title="{{ _('This announcement has no date') }}">{{ _('Save to Calendar') }}</button>
     {% elif not logged_in %}
       <a class="btn small" href="{{ login_url }}">{{ _('Log in to save') }}</a>
@@ -34,7 +42,7 @@
     {% else %}
       {# static/app.js gửi các data-* này tới POST /api/events #}
       <button class="btn small" type="button" data-save
-              data-title="{{ item.event_title }}" data-date="{{ item.event_date or item.date }}"
+              data-title="{{ item.event_title }}" data-date="{{ save_date }}"
               data-office="{{ item.office }}" data-url="{{ item.link }}">{{ _('Save to Calendar') }}</button>
     {% endif %}
     {# Ngày lấy từ tiêu đề là đoán, nên nói rõ cho người dùng tự kiểm tra #}

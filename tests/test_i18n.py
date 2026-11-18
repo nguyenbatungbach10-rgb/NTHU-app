@@ -34,11 +34,14 @@ DYNAMIC_KEYS = {
     "Home", "Calendar", "Schedule", "Announcements", "Credits & GPA", "Study", "Campus map",   # menu
     "Light", "Dark", "Auto",
     "Scholarship", "Dorm", "Careers", "Registration", "Events", "Other",                       # nhóm thông báo
+    "Admissions", "Exchange", "Campus notices",
     "Could not reach the NTHU Data API.", "The NTHU Data API returned no usable data.",
     "Welcome! Your account is ready.", "Invalid email or password.", "You have been logged out.",
     "Please enter a valid email address.", "Password must be 8 to 128 characters.",
     "Passwords do not match.", "That email is already registered.", "No subject",
     "Main campus", "Nanda campus",
+    "Add your weekly classes", "Set your graduation credits and target GPA",
+    "Save an upcoming deadline to your calendar", "Add a study task",
     "{label}: {name}, {meters} m (about {minutes} min walk)", "Walking directions in Google Maps", "{n} floors",
 } | {label for _, label, _ in map_logic.CATEGORIES}
 

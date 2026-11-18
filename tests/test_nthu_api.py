@@ -1,4 +1,5 @@
 """Test cho nthu_api.py. Chạy:  pip install pytest   rồi   python -m pytest"""
+import pytest
 import json
 import os
 import sys
@@ -8,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from nthu_api import (  # noqa: E402
     SAMPLE_ANNOUNCEMENTS,
     category_counts,
+    CATEGORY_NAMES,
     classify,
     filter_announcements,
     list_offices,
@@ -91,7 +93,8 @@ def test_classify_english_and_chinese():
 
 def test_classify_is_case_insensitive_and_has_default():
     assert classify("DORM application") == "Dorm"
-    assert classify("Three pruning notice on campus") == "Other"
+    assert classify("Three pruning notice on campus") == "Campus notices"
+    assert classify("Faculty news and photos") == "Other"
 
 
 def test_classify_order_matters_careers_before_registration():
@@ -141,3 +144,93 @@ def test_paginate_splits_and_clamps_page_numbers():
     _, page, _ = paginate(items, -4, per_page=20)   # âm -> trang 1
     assert page == 1
     assert paginate([], 1) == ([], 1, 1)            # rỗng vẫn có 1 trang
+
+
+# ---------- ngày đăng sai và bài trùng (lỗi thấy trên web thật) ----------
+from nthu_api import clean_date, normalize  # noqa: E402
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("2026-11-18", "2026-11-18"), ("2026/11/18", "2026-11-18"), ("2026.1.5", "2026-01-05"), (" 2026-11-18 ", "2026-11-18"),
+    ("8", ""), ("1", ""), ("", ""), (None, ""), ("2026-02-30", ""), ("2026-13-01", ""), ("18/11/2026", ""),
+    ("2026-11-18 10:00", ""), (20261118, ""),
+])
+def test_clean_date(raw, expected):
+    assert clean_date(raw) == expected
+
+
+def test_normalize_drops_fake_dates_so_they_do_not_lead_the_list():
+    data = [{"department": "人事室", "articles": [
+        {"title": "old pinned", "date": "8"}, {"title": "real new", "date": "2026-11-18"},
+        {"title": "older", "date": "2026/11/01"}]}]
+    items = normalize(data)
+    assert [i["title"] for i in items] == ["real new", "older", "old pinned"]
+    assert items[1]["date"] == "2026-11-01" and items[2]["date"] == ""
+
+
+def test_normalize_removes_duplicates_but_keeps_different_offices_or_dates():
+    data = [{"department": "宿舍", "articles": [{"title": "修繕系統啟用", "date": "2026-11-18"},
+                                              {"title": "修繕系統啟用 ", "date": "2026-11-18"},
+                                              {"title": "修繕系統啟用", "date": "2026-11-17"}]},
+            {"department": "學務處", "articles": [{"title": "修繕系統啟用", "date": "2026-11-18"}]}]
+    items = normalize(data)
+    assert len(items) == 3
+    assert sorted((i["office"], i["date"]) for i in items) == [("學務處", "2026-11-18"), ("宿舍", "2026-11-17"), ("宿舍", "2026-11-18")]
+
+
+# ---------- quy tắc phân loại mới (thử trên tiêu đề thật) ----------
+
+@pytest.mark.parametrize("title,expected", [
+    ("【誠徵】116科管院在職專班 招生「書審資料」工讀生", "Careers"),         # Careers đứng trước Admissions
+    ("【HBA熱烈招生中】116健康政策與經營管理碩士在職專班", "Admissions"),
+    ("校本部「第一高壓站改壓工程」停電施工公告", "Campus notices"),
+    ("[POWER OUTAGE NOTICE] Main Campus First High-Voltage Substation", "Campus notices"),
+    ("11/9(一)~12/26(六)校園公車時刻表", "Campus notices"),
+    ("【公告】116年度台灣聯大交換學生計畫-申請公告", "Exchange"),
+    ("Accepting applications for Credit Transfer for the 2025 Spring Semester", "Registration"),
+    ("【公告】2027原相大專院校創新競賽（12/8 報名截止）", "Events"),
+    ("2026/1/8(四) 新書發表會", "Events"),
+    ("Launch of the New Student Dormitory Repair Service", "Dorm"),
+    ("恭賀本所教授榮獲傑出貢獻獎", "Other"),
+])
+def test_classify_real_titles(title, expected):
+    assert classify(title) == expected
+
+
+def test_english_keywords_match_whole_words_only():
+    assert classify("Summer camp on campus") == "Other"           # "camp"/"campus" không phải từ khóa nào
+    assert classify("International students welcome") == "Other"  # "intern" không khớp "international"
+    assert classify("Intern wanted") == "Careers"
+    assert classify("Department of Power Mechanical Engineering news") == "Other"
+
+
+def test_category_names_list():
+    assert CATEGORY_NAMES[-1] == "Other" and "Campus notices" in CATEGORY_NAMES and len(set(CATEGORY_NAMES)) == len(CATEGORY_NAMES)
+
+
+# ---------- gom đơn vị ----------
+from nthu_api import GROUP_PREFIX, filter_announcements, group_offices, office_group  # noqa: E402
+
+
+@pytest.mark.parametrize("office,group", [
+    ("教務處註冊組", "教務處"), ("教務處", "教務處"), ("教務處英語教學精進中心", "教務處"),
+    ("電機資訊學院光電工程研究所", "電機資訊學院"), ("清華學院住宿書院", "清華學院"),
+    ("國際產學營運總中心NVIDIA-國立清華大學聯合創新中心", "國際產學營運總中心"),
+    ("合校停招系所聯合辦事處（教務處支援）應用數學系", "合校停招系所聯合辦事處"),
+    ("學務處衛生保健組(醫輔大樓1樓)", "學務處"), ("人事室", "人事室"), ("清華公佈欄", "清華公佈欄"),
+    ("Office of Global Affairs", "Office of Global Affairs"),
+])
+def test_office_group(office, group):
+    assert office_group(office) == group
+
+
+def test_group_offices_and_group_filter():
+    offices = ["教務處", "教務處註冊組", "人事室", "理學院物理學系"]
+    groups = group_offices(offices)
+    assert [g["name"] for g in groups] == sorted(["教務處", "人事室", "理學院"])
+    assert next(g for g in groups if g["name"] == "教務處")["offices"] == ["教務處", "教務處註冊組"]
+    items = [{"title": t, "office": o, "language": "zh-tw", "category": "Other", "date": ""}
+             for t, o in [("a", "教務處註冊組"), ("b", "教務處"), ("c", "人事室")]]
+    assert [i["title"] for i in filter_announcements(items, office=GROUP_PREFIX + "教務處")] == ["a", "b"]
+    assert [i["title"] for i in filter_announcements(items, office="教務處")] == ["b"]       # chọn đúng một đơn vị
+    assert filter_announcements(items, office=GROUP_PREFIX + "不存在") == []

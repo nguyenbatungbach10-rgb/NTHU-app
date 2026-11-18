@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}{{ code }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
+
+{% block content %}
+<section class="error-page">
+  <p class="error-code" aria-hidden="true">{{ code }}</p>
+  <h1>{{ _(heading) }}</h1>
+  <p>{{ _(message) }}</p>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('home') }}">{{ _('Go to the home page') }}</a>
+    <a class="btn ghost" href="{{ url_for('map_page') }}">{{ _('Open the campus map') }}</a>
+  </div>
+</section>
+{% endblock %}
