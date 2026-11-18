@@ -25,6 +25,9 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    The button saves on the date found in the title (deadline_logic.suggest_date: Republic of
    China years like 115年10月08日, 2026-11-20, 11月20日, "Nov 20"...), else on the posted date,
    and the page says "date found in the title" so users can check the guess.
+   If the API cannot be reached (PythonAnywhere free plan blocks api.nthusa.tw), fetch_announcements()
+   falls back to data/announcements_snapshot.json (made by python tools/save_announcements.py), then to
+   sample data; it returns (items, notice) with notice None / {"kind": "snapshot"|"sample", ...}.
 5. Campus map - DONE (/map: MapLibre GL JS + OpenFreeMap tiles, 2D/3D toggle, search by name,
    abbreviation or room ("Delta 205", "綜三 B101"), category filter, nearest food / bus / shop,
    today's classes linked to buildings; map_logic.py + /api/places, /api/places/search, /api/places/<id>).
@@ -70,6 +73,7 @@ i18n.py                 translations (zh-TW), language detection, dates/duration
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
 tools/fetch_map_data.py downloads a fresh data/nthu_osm.csv from the Overpass API
+tools/save_announcements.py  saves real announcements to data/announcements_snapshot.json (run where the API is reachable)
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
                         study_sessions, classes tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
@@ -86,7 +90,7 @@ GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (368 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (385 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

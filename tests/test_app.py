@@ -12,7 +12,8 @@ def test_home_shows_latest_announcements(app):
 
 
 def test_home_hides_latest_when_api_fails(app, monkeypatch):
-    monkeypatch.setattr(app_module, "fetch_announcements", lambda: (FAKE_ITEMS, "error"))
+    monkeypatch.setattr(app_module, "fetch_announcements",
+                        lambda: (FAKE_ITEMS, {"kind": "sample", "reason": "Could not reach the NTHU Data API."}))
     html = app.test_client().get("/").get_data(as_text=True)
     assert "Scholarship news" not in html
     assert "unavailable right now" in html

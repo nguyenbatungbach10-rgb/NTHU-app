@@ -1,7 +1,9 @@
 """Lấy và xử lý dữ liệu announcements từ NTHU Data API.
 
 File này chỉ chứa logic Python (không có Flask) để dễ test và dễ giải thích:
-    fetch_announcements()  -> gọi API, trả về (danh sách, thông báo lỗi)
+    fetch_announcements()  -> gọi API, trả về (danh sách, trạng thái); API lỗi thì dùng bản lưu, rồi dữ liệu mẫu
+    load_snapshot()        -> đọc bản lưu data/announcements_snapshot.json (tạo bằng tools/save_announcements.py)
+    make_snapshot()        -> nội dung bản lưu: thời điểm lưu + JSON gốc của API
     normalize()            -> "dàn phẳng" JSON thành danh sách thông báo
     classify()             -> đoán chủ đề (Scholarship, Dorm...) từ tiêu đề
     filter_announcements() -> lọc theo office, từ khóa, ngôn ngữ, chủ đề
@@ -22,8 +24,10 @@ Cấu trúc JSON thật của GET /announcements (mỗi phần tử là MỘT Đ
       }
     ]
 """
+import json
 import math
 import time
+from pathlib import Path
 
 import requests
 
@@ -31,8 +35,12 @@ BASE_URL = "https://api.nthusa.tw"
 CACHE_SECONDS = 300  # nhớ kết quả 5 phút để không gọi API liên tục
 PER_PAGE = 20        # số thông báo mỗi trang
 
-# Bộ nhớ tạm: lưu lần gọi API gần nhất
-_cache = {"time": 0.0, "items": []}
+# Bản lưu thông báo thật, dùng khi server không gọi được API (ví dụ gói miễn phí của PythonAnywhere chặn
+# api.nthusa.tw). Tạo/cập nhật trên máy có mạng: python tools/save_announcements.py, rồi commit file này.
+SNAPSHOT_FILE = Path(__file__).parent / "data" / "announcements_snapshot.json"
+
+# Bộ nhớ tạm: kết quả lần gần nhất (kể cả khi phải dùng bản lưu) để không gọi API ở mọi request
+_cache = {"time": 0.0, "items": [], "notice": None}
 
 # Dữ liệu mẫu: hiện ra khi không gọi được API (mất mạng, API lỗi...)
 # để trang vẫn chạy được lúc demo.
@@ -119,30 +127,64 @@ def normalize(data):
     return items
 
 
-def fetch_announcements():
-    """Gọi NTHU Data API. Trả về (items, error).
+def make_snapshot(data, now):
+    """Nội dung file bản lưu: {"saved_at": "2026-11-18 11:40", "data": <JSON gốc của API>}."""
+    return {"saved_at": now.strftime("%Y-%m-%d %H:%M"), "data": data}
 
-    error là None nếu mọi thứ ổn; nếu lỗi thì trả dữ liệu mẫu + thông báo lỗi.
+
+def load_snapshot(path=None):
+    """(items, saved_at) từ file bản lưu; chưa có file, file hỏng hoặc không có thông báo nào -> (None, None)."""
+    path = Path(path) if path else SNAPSHOT_FILE
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+    items = normalize(payload.get("data"))
+    saved_at = payload.get("saved_at")
+    if not items:
+        return None, None
+    return items, saved_at if isinstance(saved_at, str) else ""
+
+
+def _remember(items, notice, now):
+    """Lưu vào bộ nhớ tạm rồi trả về (items, notice)."""
+    _cache.update(time=now, items=items, notice=notice)
+    return items, notice
+
+
+def fetch_announcements():
+    """Lấy thông báo. Trả về (items, notice):
+        notice = None                                    -> dữ liệu trực tiếp từ API
+        notice = {"kind": "snapshot", "saved_at", "reason"} -> API lỗi, dùng bản lưu (vẫn là thông báo thật)
+        notice = {"kind": "sample", "reason"}             -> API lỗi và chưa có bản lưu: dữ liệu mẫu
+    Kết quả được nhớ CACHE_SECONDS giây, kể cả khi lỗi, để không gọi API (và chờ lỗi) ở mọi request.
     """
     now = time.time()
     if _cache["items"] and now - _cache["time"] < CACHE_SECONDS:
-        return _cache["items"], None
+        return _cache["items"], _cache["notice"]
 
     try:
         response = requests.get(f"{BASE_URL}/announcements", timeout=15)
         response.raise_for_status()          # lỗi 4xx/5xx -> ném exception
         items = normalize(response.json())   # JSON -> list các dict
+        reason = "The NTHU Data API returned no usable data."
     except (requests.RequestException, ValueError) as exc:
-        print("[nthu_api] API error:", exc)  # chi tiết lỗi hiện trong terminal
-        return SAMPLE_ANNOUNCEMENTS, "Could not reach the NTHU Data API."
+        print("[nthu_api] API error:", exc)  # chi tiết lỗi hiện trong terminal / error log
+        items, reason = [], "Could not reach the NTHU Data API."
 
-    if not items:
-        print("[nthu_api] API returned no usable announcements")
-        return SAMPLE_ANNOUNCEMENTS, "The NTHU Data API returned no usable data."
+    if items:
+        return _remember(items, None, now)
+    saved, saved_at = load_snapshot()
+    if saved:
+        return _remember(saved, {"kind": "snapshot", "saved_at": saved_at, "reason": reason}, now)
+    return _remember(SAMPLE_ANNOUNCEMENTS, {"kind": "sample", "reason": reason}, now)
 
-    _cache["time"] = now
-    _cache["items"] = items
-    return items, None
+
+def is_sample(notice):
+    """True nếu đang hiện dữ liệu mẫu (không phải thông báo thật)."""
+    return isinstance(notice, dict) and notice.get("kind") == "sample"
 
 
 def filter_announcements(items, office="", q="", lang="", category=""):

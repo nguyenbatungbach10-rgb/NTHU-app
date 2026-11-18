@@ -240,6 +240,7 @@ a { color: var(--accent); }
 
 .latest { margin-top: 36px; }
 .latest-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.saved-note { margin: -6px 0 12px; font-size: 0.82rem; color: var(--muted); }
 .latest-head h2 { margin: 0; color: var(--accent-dark); font-size: 1.25rem; }
 
 /* ---------- tài khoản, form, thông báo flash ---------- */

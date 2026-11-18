@@ -123,6 +123,9 @@
     <h2>{{ _('Latest announcements') }}</h2>
     <a href="{{ url_for('announcements') }}">{{ _('View all') }}</a>
   </div>
+  {% if notice and notice.kind == 'snapshot' %}
+    <p class="saved-note">{{ _('Saved on {date}', date=notice.saved_at) }}</p>
+  {% endif %}
   {% if latest %}
     <ul class="list">
       {% for item in latest %}

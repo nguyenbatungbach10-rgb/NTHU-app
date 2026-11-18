@@ -120,3 +120,18 @@ git push
 ```
 
 Sau đó Manh và Nhan chạy `git pull` để cùng có bản mới.
+
+## Bản lưu thông báo (khi server không gọi được API)
+- **Vấn đề:** gói miễn phí của PythonAnywhere chỉ cho server gọi ra một danh sách trang được duyệt, và `api.nthusa.tw`
+  không có trong đó. Trên web online, server không lấy được thông báo; trên máy của nhóm thì vẫn được.
+- **Cách giải quyết:** `tools/save_announcements.py` chạy trên máy có mạng, tải JSON gốc của API và lưu vào
+  `data/announcements_snapshot.json` dạng `{"saved_at": "2026-11-18 11:40", "data": <JSON gốc>}`. Commit file này lên GitHub.
+- **Thứ tự `fetch_announcements()` thử:**
+  1. Gọi API trực tiếp. Được thì trả về `(items, None)`.
+  2. Không được: đọc bản lưu (`load_snapshot()`, vẫn dùng `normalize()` và `classify()` như dữ liệu thật) và trả về
+     `(items, {"kind": "snapshot", "saved_at": ..., "reason": ...})`. Trang ghi rõ "saved on <ngày>".
+  3. Chưa có bản lưu: dữ liệu mẫu `(SAMPLE_ANNOUNCEMENTS, {"kind": "sample", ...})`. Trang chủ không hiện dữ liệu mẫu.
+- Kết quả, kể cả khi lỗi, được nhớ 5 phút, để server không gọi lại API (và chờ lỗi) ở mọi lượt mở trang.
+- Script chỉ ghi file khi tải được và có thông báo dùng được; lỗi thì giữ nguyên bản lưu cũ.
+- **Cập nhật dữ liệu:** chạy lại script trên máy, commit, push, rồi `git pull` trên PythonAnywhere.
+- Test: `tests/test_snapshot.py` (API thắng bản lưu, bản lưu thắng dữ liệu mẫu, file hỏng, nhớ tạm khi lỗi, script).

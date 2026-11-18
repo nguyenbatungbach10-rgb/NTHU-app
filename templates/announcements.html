@@ -6,9 +6,14 @@
 {% block content %}
 <h1>{{ _('Campus Announcements') }}</h1>
 
-{% if error %}
+{# notice do nthu_api.fetch_announcements() trả về: None = dữ liệu trực tiếp #}
+{% if notice %}
   <div class="alert">
-    {{ _('Showing sample data.') }} {{ _(error) }}
+    {% if notice.kind == 'snapshot' %}
+      {{ _('Live data is not available right now. Showing announcements saved on {date}.', date=notice.saved_at) }}
+    {% else %}
+      {{ _('Showing sample data.') }} {{ _(notice.reason) }}
+    {% endif %}
   </div>
 {% endif %}
 

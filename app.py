@@ -79,6 +79,7 @@ from study_logic import (
 from nthu_api import (
     category_counts,
     fetch_announcements,
+    is_sample,
     filter_announcements,
     list_offices,
     paginate,
@@ -216,9 +217,9 @@ def safe_next(target):
 @app.route("/")
 def home():
     """Trang chủ: sự kiện sắp tới của bạn (nếu đã đăng nhập) + thông báo mới nhất."""
-    items, error = fetch_announcements()
-    # Khi API lỗi, items là dữ liệu mẫu -> không hiện trên trang chủ cho khỏi nhầm
-    latest = [] if error else items[:LATEST_ON_HOME]
+    items, notice = fetch_announcements()
+    # Dữ liệu mẫu thì không hiện trên trang chủ cho khỏi nhầm; bản lưu là thông báo thật nên vẫn hiện
+    latest = [] if is_sample(notice) else items[:LATEST_ON_HOME]
 
     upcoming, today_classes, due = [], [], []
     today = date.today()
@@ -228,7 +229,7 @@ def home():
                                               campus_places()[0])
         tomorrow = (today + timedelta(days=1)).isoformat()
         due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
-    return render_template("home.html", latest=latest, upcoming=upcoming,
+    return render_template("home.html", latest=latest, upcoming=upcoming, notice=notice,
                            today=today, today_classes=today_classes, due_tasks=due)
 
 
@@ -244,7 +245,7 @@ def announcements():
     cat = request.args.get("cat", "").strip()
     page = request.args.get("page", 1, type=int)  # không phải số -> dùng 1
 
-    items, error = fetch_announcements()
+    items, notice = fetch_announcements()
     filtered = filter_announcements(items, office=office, q=q, lang=lang, category=cat)
     page_items, page, total_pages = paginate(filtered, page)
 
@@ -265,7 +266,7 @@ def announcements():
         office=office,
         lang=lang,
         cat=cat,
-        error=error,
+        notice=notice,
     )
 
 

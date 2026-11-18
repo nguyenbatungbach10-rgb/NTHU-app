@@ -80,6 +80,8 @@ ZH = {
     "Log in to save": "登入後儲存", "Saved": "已儲存",
     "Will be saved on {date} (date found in the title)": "將存在 {date}（日期取自標題）",
     "Campus Announcements": "校園公告", "Showing sample data.": "目前顯示範例資料。",
+    "Live data is not available right now. Showing announcements saved on {date}.": "目前無法取得即時資料，顯示 {date} 儲存的公告。",
+    "Saved on {date}": "儲存於 {date}",
     "Could not reach the NTHU Data API.": "無法連線到清大資料 API。",
     "The NTHU Data API returned no usable data.": "清大資料 API 沒有回傳可用的資料。",
     "Category": "類別", "All categories": "所有類別", "Office": "單位", "All offices": "所有單位",
