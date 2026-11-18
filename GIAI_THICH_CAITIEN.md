@@ -52,7 +52,8 @@ Mọi chỗ trong `app.py` trước đây dùng `date.today()` giờ dùng `toda
 
 Trang Announcements có 3 tab: **All announcements**, **Deadlines** (hạn chót) và **Talks & events**
 (buổi nói chuyện, hội thảo). Cả hai tab sau chỉ lấy thông báo có ngày ghi trong tiêu đề, trong 60 ngày tới,
-gần nhất trước. Trang chủ chỉ hiện **hạn chót** trong 30 ngày tới.
+gần nhất trước. Trang chủ có khối **Upcoming events**: các buổi nói chuyện / hội thảo / hoạt động trong 14 ngày tới
+(hằng số `HOME_EVENT_DAYS` trong `app.py`); hạn chót thì xem ở tab Deadlines.
 
 - `upcoming_dates(items, today, days, kind)` trả về **bản sao** của từng thông báo, thêm `due` (ngày),
   `days_left` (còn bao nhiêu ngày) và `is_deadline`.

@@ -129,8 +129,8 @@
 {% if soon %}
 <section class="latest">
   <div class="latest-head">
-    <h2>{{ _('Upcoming deadlines') }}</h2>
-    <a href="{{ url_for('announcements', view='deadlines') }}">{{ _('View all') }}</a>
+    <h2>{{ _('Upcoming events') }}</h2>
+    <a href="{{ url_for('announcements', view='events') }}">{{ _('View all') }}</a>
   </div>
   <ul class="agenda">
     {% for item in soon %}{{ dated_row(item) }}{% endfor %}

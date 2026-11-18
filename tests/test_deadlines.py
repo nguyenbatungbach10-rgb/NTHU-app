@@ -82,15 +82,16 @@ def test_deadlines_view_keeps_filters_and_default_view(make_browser, monkeypatch
     assert "Old news" in html                                                    # giá trị lạ -> xem tất cả
 
 
-def test_home_shows_upcoming_deadlines_but_not_from_sample_data(make_browser, monkeypatch):
+def test_home_shows_upcoming_events_but_not_from_sample_data(make_browser, monkeypatch):
     items, _ = fake_items()
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, None))
     html = make_browser().client.get("/").get_data(as_text=True)
-    assert "Upcoming deadlines" in html and "view=deadlines" in html
-    assert "專題演講" not in html.split("Upcoming deadlines")[1].split("Latest announcements")[0]
+    block = html.split("Upcoming events")[1].split("Latest announcements")[0]
+    assert "view=events" in block and "專題演講" in block
+    assert "獎學金申請至" not in block                                     # hạn chót không hiện ở khối này
     monkeypatch.setattr(app_module, "fetch_announcements",
                         lambda: (nthu_api.SAMPLE_ANNOUNCEMENTS, {"kind": "sample", "reason": "x"}))
-    assert "Upcoming deadlines" not in make_browser().client.get("/").get_data(as_text=True)
+    assert "Upcoming events" not in make_browser().client.get("/").get_data(as_text=True)
 
 
 def test_undated_announcement_with_title_date_can_be_saved(browser, monkeypatch):

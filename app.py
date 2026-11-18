@@ -111,7 +111,7 @@ app.teardown_appcontext(db.close_db)
 
 LATEST_ON_HOME = 5
 DEADLINE_DAYS = 60          # trang Announcements > Upcoming deadlines: 60 ngày tới
-HOME_DEADLINE_DAYS = 30     # trang chủ: hạn trong 30 ngày tới
+HOME_EVENT_DAYS = 14        # trang chủ: buổi nói chuyện / hoạt động trong 14 ngày tới
 # ?view=... của trang Announcements -> loại ngày cần lấy (xem nthu_api.upcoming_dates)
 ANNOUNCEMENT_VIEWS = {"all": None, "deadlines": "deadline", "events": "event"}
 UPCOMING_ON_HOME = 5
@@ -243,8 +243,9 @@ def home():
     items, notice = fetch_announcements()
     # Dữ liệu mẫu thì không hiện trên trang chủ cho khỏi nhầm; bản lưu là thông báo thật nên vẫn hiện
     latest = [] if is_sample(notice) else items[:LATEST_ON_HOME]
-    # Trang chủ chỉ hiện HẠN CHÓT thật (hạn nộp đơn...), không hiện buổi nói chuyện/hội thảo
-    soon = [] if is_sample(notice) else upcoming_dates(items, today_tw(), HOME_DEADLINE_DAYS, "deadline")[:LATEST_ON_HOME]
+    # Trang chủ hiện các SỰ KIỆN sắp diễn ra (buổi nói chuyện, hội thảo, hoạt động), không hiện hạn chót;
+    # hạn chót xem ở trang Announcements > Deadlines
+    soon = [] if is_sample(notice) else upcoming_dates(items, today_tw(), HOME_EVENT_DAYS, "event")[:LATEST_ON_HOME]
 
     upcoming, today_classes, due = [], [], []
     today = today_tw()

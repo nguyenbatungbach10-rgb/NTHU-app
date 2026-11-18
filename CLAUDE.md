@@ -25,7 +25,7 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    latest 5 on the home page, "Save to Calendar" button. Dates are cleaned (clean_date) and
    duplicates (office, title, date) dropped in normalize(). Tabs ?view=deadlines / ?view=events
    (upcoming_dates(kind="deadline"|"event"): next 60 days; is_deadline = DEADLINE_WORDS in title, otherwise the
-   title date is just when a talk/event happens). Home page shows only deadlines (30 days).
+   title date is just when a talk/event happens). Home page block "Upcoming events" shows only talks/events (HOME_EVENT_DAYS = 14).
    The button saves on the date found in the title (deadline_logic.suggest_date: Republic of
    China years like 115年10月08日, 2026-11-20, 11月20日, "Nov 20"...), else on the posted date,
    and the page says "date found in the title" so users can check the guess.

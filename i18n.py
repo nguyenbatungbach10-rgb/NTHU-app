@@ -98,7 +98,7 @@ ZH = {
     "All languages": "所有語言", "Search keyword...": "搜尋關鍵字…", "Filter": "篩選", "Clear": "清除",
     "{count} of {total} announcements, newest first": "共 {total} 則公告，顯示 {count} 則，最新的在前",
     "Newer": "較新", "Older": "較舊", "Page {page} of {pages}": "第 {page} 頁，共 {pages} 頁",
-    "View": "檢視", "All announcements": "所有公告", "Upcoming deadlines": "即將截止",
+    "View": "檢視", "All announcements": "所有公告", "Upcoming deadlines": "即將截止", "Upcoming events": "近期活動",
     "All of {name}": "{name}（全部）",
     "{count} deadlines in the next {days} days, soonest first. Dates are read from the titles, so check the original.":
         "未來 {days} 天內共有 {count} 個截止期限，最近的在前。日期取自標題，請以原始公告為準。",
