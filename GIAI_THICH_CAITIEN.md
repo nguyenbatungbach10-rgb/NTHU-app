@@ -114,6 +114,27 @@ hết hạn 15 phút thì số lần sai tụt dưới giới hạn. Làm tròn 
 - Chạy `python app.py` trên máy mình thì **không** bật, vì không có HTTPS và không có proxy
   (bật ProxyFix khi không có proxy thì người dùng tự gửi header giả IP được).
 
+## 12. Danh sách gọn kiểu "lịch hẹn" (`templates/_macros.html`, `.agenda` trong `style.css`)
+
+Trước đây mỗi thông báo là một thẻ to riêng (đơn vị + nhãn + ngày đăng + tiêu đề tím đậm + dòng "Date:"),
+nên 5 mục đã chiếm hết màn hình. Giờ trang chủ và 2 tab Deadlines / Talks & events dùng **một khung chung**,
+các dòng ngăn bằng đường kẻ mảnh:
+
+```
+[20 ]  Tiêu đề (tối đa 2 dòng, cắt bằng "...")        tomorrow  [Save to Calendar]
+[Nov]  人事室
+```
+
+- `date_tile(iso, urgent)`: ô ngày, số ngày to + tháng nhỏ (`month_short` đã dịch "Nov" / "11月").
+  Hạn chót còn ≤ 3 ngày thì ô và chữ "tomorrow" chuyển màu đỏ.
+- `dated_row(item)`: một hạn chót/sự kiện (kết quả của `upcoming_dates`). Có một dòng chữ ẩn (`sr-only`)
+  "Deadline: 2026-11-20" cho trình đọc màn hình, vì ô ngày chỉ là hình.
+- `event_row(ev)`: sự kiện trong Calendar của bạn (khối "Coming up").
+- `brief_row(item)`: thông báo mới, chỉ tiêu đề + đơn vị + ngày đăng.
+- `save_button(...)`: nút "Save to Calendar" tách ra một macro để thẻ lớn và dòng gọn dùng chung, không viết lặp.
+- Trên điện thoại (`@media (max-width: 560px)`) ô ngày nhỏ lại và phần "tomorrow"/nút xuống dưới tiêu đề.
+- Tab "All announcements" vẫn dùng thẻ lớn vì ở đó cần thấy nhãn loại (Scholarship, Dorm...).
+
 ---
 
 ## Câu hỏi TA có thể hỏi
@@ -125,3 +146,5 @@ hết hạn 15 phút thì số lần sai tụt dưới giới hạn. Làm tròn 
 3. **Test thế nào khi phải chờ 15 phút?** Trong test, `monkeypatch` thay `time.time` bằng một hàm trả về
    thời điểm 15 phút sau (`tests/test_login_guard.py`).
 4. **Sao "hôm nay" không dùng `date.today()`?** Vì đó là ngày của máy server (UTC), không phải Đài Loan.
+5. **Macro trong Jinja là gì?** Giống hàm Python: định nghĩa một lần (`{% macro dated_row(item) %}`),
+   gọi nhiều lần (`{{ dated_row(item) }}`), để HTML của mỗi dòng chỉ viết ở một chỗ.

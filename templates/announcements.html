@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import announcement %}
+{% from "_macros.html" import announcement, dated_row %}
 
 {% block title %}{{ _('Announcements') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
@@ -71,13 +71,22 @@
 {% endif %}
 
 {% if items %}
-  <ul class="list">
-    {# Sau khi đăng nhập xong sẽ quay lại đúng trang (và bộ lọc) này #}
-    {% set login_url = url_for('login', next=request.full_path.rstrip('?')) %}
-    {% for item in items %}
-      {{ announcement(item, logged_in=current_user is not none, login_url=login_url) }}
-    {% endfor %}
-  </ul>
+  {# Sau khi đăng nhập xong sẽ quay lại đúng trang (và bộ lọc) này #}
+  {% set login_url = url_for('login', next=request.full_path.rstrip('?')) %}
+  {% if view == 'all' %}
+    <ul class="list">
+      {% for item in items %}
+        {{ announcement(item, logged_in=current_user is not none, login_url=login_url) }}
+      {% endfor %}
+    </ul>
+  {% else %}
+    {# Hạn chót / sự kiện: danh sách gọn có ô ngày (giống trang chủ) #}
+    <ul class="agenda">
+      {% for item in items %}
+        {{ dated_row(item, show_save=true, logged_in=current_user is not none, login_url=login_url) }}
+      {% endfor %}
+    </ul>
+  {% endif %}
 
   {% if total_pages > 1 %}
     {# Giữ nguyên các bộ lọc khi đổi trang; giá trị rỗng -> None để url_for bỏ qua #}

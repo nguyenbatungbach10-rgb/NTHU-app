@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import announcement %}
+{% from "_macros.html" import dated_row, event_row, brief_row %}
 {% from "_icons.html" import icon %}
 
 {% block content %}
@@ -116,15 +116,8 @@
     <a href="{{ url_for('calendar_page') }}">{{ _('Open calendar') }}</a>
   </div>
   {% if upcoming %}
-    <ul class="list">
-      {% for ev in upcoming %}
-        <li class="item">
-          <div class="meta">
-            <span class="office">{{ ev.date }}{% if ev.time %} {{ ev.time }}{% endif %}</span>
-          </div>
-          <h3><a href="{{ url_for('calendar_page', month=ev.date[:7]) }}">{{ ev.title }}</a></h3>
-        </li>
-      {% endfor %}
+    <ul class="agenda">
+      {% for ev in upcoming %}{{ event_row(ev) }}{% endfor %}
     </ul>
   {% else %}
     <p class="empty">{{ _('No upcoming events. Add one in the calendar or save a deadline from the announcements.') }}
@@ -139,10 +132,8 @@
     <h2>{{ _('Upcoming deadlines') }}</h2>
     <a href="{{ url_for('announcements', view='deadlines') }}">{{ _('View all') }}</a>
   </div>
-  <ul class="list">
-    {% for item in soon %}
-      {{ announcement(item, show_save=false) }}
-    {% endfor %}
+  <ul class="agenda">
+    {% for item in soon %}{{ dated_row(item) }}{% endfor %}
   </ul>
 </section>
 {% endif %}
@@ -156,10 +147,8 @@
     <p class="saved-note">{{ _('Saved on {date}', date=notice.saved_at) }}</p>
   {% endif %}
   {% if latest %}
-    <ul class="list">
-      {% for item in latest %}
-        {{ announcement(item, show_save=false) }}
-      {% endfor %}
+    <ul class="agenda">
+      {% for item in latest %}{{ brief_row(item) }}{% endfor %}
     </ul>
   {% else %}
     <p class="empty">{{ _('Announcements are unavailable right now. Please try again later.') }}</p>

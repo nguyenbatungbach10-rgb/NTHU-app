@@ -15,7 +15,7 @@
         <span class="chip">{{ _(item.category) }}</span>
       {% endif %}
     </span>
-    {% if item.date %}<span class="date" title="{{ _('Posted on') }}">{{ _('Posted {date}', date=item.date) if item.due is defined else item.date }}</span>{% endif %}
+    <span class="date">{{ item.date }}</span>
   </div>
   <h3>
     {% if item.link %}
@@ -24,31 +24,83 @@
       {{ item.title }}
     {% endif %}
   </h3>
-  {% if item.due is defined %}
-    {# Từ trang "Upcoming deadlines": ngày đọc từ tiêu đề và số ngày còn lại (Python tính) #}
-    <p class="due {{ 'soon' if item.is_deadline and item.days_left <= 7 }}">
-      <strong>{{ _('Deadline') if item.is_deadline else _('Takes place') }}: {{ item.due }}</strong>
-      &middot; {% if item.days_left == 0 %}{{ _('today') }}{% elif item.days_left == 1 %}{{ _('tomorrow') }}{% else %}{{ _('in {n} days', n=item.days_left) }}{% endif %}
-    </p>
-  {% endif %}
   {% if show_save %}
-    {% set save_date = item.event_date or item.date %}
-    {% if not save_date %}
-      <button class="btn small" type="button" disabled title="{{ _('This announcement has no date') }}">{{ _('Save to Calendar') }}</button>
-    {% elif not logged_in %}
-      <a class="btn small" href="{{ login_url }}">{{ _('Log in to save') }}</a>
-    {% elif item.saved %}
-      <button class="btn small" type="button" disabled>{{ _('Saved') }} &#10003;</button>
-    {% else %}
-      {# static/app.js gửi các data-* này tới POST /api/events #}
-      <button class="btn small" type="button" data-save
-              data-title="{{ item.event_title }}" data-date="{{ save_date }}"
-              data-office="{{ item.office }}" data-url="{{ item.link }}">{{ _('Save to Calendar') }}</button>
-    {% endif %}
+    {{ save_button(item, item.event_date or item.date, logged_in, login_url) }}
     {# Ngày lấy từ tiêu đề là đoán, nên nói rõ cho người dùng tự kiểm tra #}
     {% if item.date_from_title %}
       <span class="date-hint">{{ _('Will be saved on {date} (date found in the title)', date=item.event_date) }}</span>
     {% endif %}
   {% endif %}
+</li>
+{% endmacro %}
+
+
+{# Nút "Save to Calendar" (static/app.js gửi các data-* tới POST /api/events) #}
+{% macro save_button(item, save_date, logged_in, login_url) %}
+  {% if not save_date %}
+    <button class="btn small" type="button" disabled title="{{ _('This announcement has no date') }}">{{ _('Save to Calendar') }}</button>
+  {% elif not logged_in %}
+    <a class="btn small" href="{{ login_url }}">{{ _('Log in to save') }}</a>
+  {% elif item.saved %}
+    <button class="btn small" type="button" disabled>{{ _('Saved') }} &#10003;</button>
+  {% else %}
+    <button class="btn small" type="button" data-save
+            data-title="{{ item.event_title }}" data-date="{{ save_date }}"
+            data-office="{{ item.office }}" data-url="{{ item.link }}">{{ _('Save to Calendar') }}</button>
+  {% endif %}
+{% endmacro %}
+
+
+{# ===== Danh sách gọn kiểu "lịch hẹn": ô ngày bên trái, nội dung ở giữa, thời gian bên phải =====
+   Dùng: <ul class="agenda"> {{ dated_row(item) }} ... </ul> #}
+
+{# Ô ngày: "20" to, "Nov" / "11月" nhỏ. iso = "YYYY-MM-DD". #}
+{% macro date_tile(iso, urgent=false) %}
+  <span class="day-tile {{ 'urgent' if urgent }}" aria-hidden="true"><b>{{ iso[8:10] | int }}</b><small>{{ month_short(iso[5:7] | int) }}</small></span>
+{% endmacro %}
+
+{# "today" / "tomorrow" / "in 9 days" (days_left do Python tính) #}
+{% macro days_text(days) -%}
+  {% if days == 0 %}{{ _('today') }}{% elif days == 1 %}{{ _('tomorrow') }}{% else %}{{ _('in {n} days', n=days) }}{% endif %}
+{%- endmacro %}
+
+{# Một hạn chót hoặc sự kiện đọc từ tiêu đề thông báo (kết quả của nthu_api.upcoming_dates) #}
+{% macro dated_row(item, show_save=false, logged_in=false, login_url="") %}
+{% set urgent = item.is_deadline and item.days_left <= 3 %}
+<li class="row">
+  {{ date_tile(item.due, urgent) }}
+  <div class="row-main">
+    <span class="sr-only">{{ _('Deadline') if item.is_deadline else _('Takes place') }}: {{ item.due }}.</span>
+    {% if item.link %}<a class="row-title" href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+    {% else %}<span class="row-title">{{ item.title }}</span>{% endif %}
+    <span class="row-meta">{{ item.office }}</span>
+  </div>
+  <div class="row-side">
+    <span class="row-when {{ 'urgent' if urgent }}">{{ days_text(item.days_left) }}</span>
+    {% if show_save %}{{ save_button(item, item.event_date or item.due, logged_in, login_url) }}{% endif %}
+  </div>
+</li>
+{% endmacro %}
+
+{# Một sự kiện trong Calendar của người dùng (trang chủ, "Coming up") #}
+{% macro event_row(ev) %}
+<li class="row">
+  {{ date_tile(ev.date) }}
+  <div class="row-main">
+    <a class="row-title" href="{{ url_for('calendar_page', month=ev.date[:7]) }}">{{ ev.title }}</a>
+    <span class="row-meta">{{ ev.date }}{% if ev.time %} &middot; {{ ev.time }}{% endif %}</span>
+  </div>
+</li>
+{% endmacro %}
+
+{# Một thông báo mới (trang chủ, "Latest announcements"): chỉ tiêu đề và đơn vị, không có ô ngày #}
+{% macro brief_row(item) %}
+<li class="row no-tile">
+  <div class="row-main">
+    {% if item.link %}<a class="row-title" href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+    {% else %}<span class="row-title">{{ item.title }}</span>{% endif %}
+    <span class="row-meta">{{ item.office }}</span>
+  </div>
+  {% if item.date %}<div class="row-side"><span class="row-when">{{ item.date }}</span></div>{% endif %}
 </li>
 {% endmacro %}
