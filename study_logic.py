@@ -212,3 +212,97 @@ def overview(tasks, sessions, today):
         "week_minutes": total_minutes(sessions, week_start, week_end),
         "days_studied_this_week": len({s["date"] for s in sessions if week_start <= s["date"] < week_end}),
     }
+
+
+# ---------- Thống kê học tập (biểu đồ giống mockup) ----------
+
+PERIODS = {"week": 7, "month": 30}       # số ngày của mỗi khoảng xem
+SUBJECT_SLOTS = 5                        # 5 màu cho 5 môn nhiều nhất, còn lại gộp "Other"
+
+
+def _daily_minutes(sessions):
+    """{"2026-11-18": 45, ...}: tổng phút mỗi ngày."""
+    totals = {}
+    for s in sessions:
+        totals[s["date"]] = totals.get(s["date"], 0) + s["minutes"]
+    return totals
+
+
+def period_days(today, period):
+    """Các ngày của khoảng đang xem: "week" = Thứ 2 -> CN tuần này, "month" = 30 ngày tới hôm nay."""
+    if period == "week":
+        monday = today - timedelta(days=today.weekday())
+        return [monday + timedelta(days=i) for i in range(7)]
+    return [today - timedelta(days=PERIODS["month"] - 1 - i) for i in range(PERIODS["month"])]
+
+
+def percent_change(now, before):
+    """Thay đổi so với kỳ trước, làm tròn %: 8h so với 6h -> 33. Kỳ trước bằng 0 -> None (không so được)."""
+    return round((now - before) * 100 / before) if before else None
+
+
+def study_streak(sessions, today):
+    """Số ngày liên tiếp có học, tính tới hôm nay (hôm nay chưa học thì tính tới hôm qua)."""
+    days = {s["date"] for s in sessions if s["minutes"] > 0}
+    day = today if today.isoformat() in days else today - timedelta(days=1)
+    streak = 0
+    while day.isoformat() in days:
+        streak += 1
+        day -= timedelta(days=1)
+    return streak
+
+
+def subject_shares(sessions, subject_names, start, end):
+    """Phần trăm thời gian theo môn trong [start, end): 5 môn nhiều nhất, còn lại gộp thành "Other".
+
+    Mỗi dòng {"name", "minutes", "percent", "slot"}; slot 1..6 chọn màu (6 = Other).
+    """
+    rows = minutes_by_subject(sessions, subject_names, start, end)
+    total = sum(r["minutes"] for r in rows)
+    if not total:
+        return []
+    top, rest = rows[:SUBJECT_SLOTS], rows[SUBJECT_SLOTS:]
+    if rest:
+        top.append({"subject_id": "other", "name": "Other", "minutes": sum(r["minutes"] for r in rest)})
+    return [dict(r, percent=round(r["minutes"] * 100 / total), slot=i + 1) for i, r in enumerate(top)]
+
+
+def donut_gradient(shares):
+    """CSS conic-gradient cho biểu đồ tròn: "conic-gradient(var(--c1) 0% 32%, var(--c2) 32% 57%, ...)"."""
+    if not shares:
+        return "none"
+    total = sum(s["minutes"] for s in shares)
+    parts, start = [], 0.0
+    for s in shares:
+        end = start + s["minutes"] * 100 / total
+        parts.append(f"var(--c{s['slot']}) {start:.1f}% {end:.1f}%")
+        start = end
+    return "conic-gradient(" + ", ".join(parts) + ")"
+
+
+def best_weekday(sessions):
+    """Thứ trong tuần học nhiều nhất (0 = Thứ 2); chưa có buổi học nào -> None."""
+    totals = [0] * 7
+    for s in sessions:
+        totals[date.fromisoformat(s["date"]).weekday()] += s["minutes"]
+    return totals.index(max(totals)) if any(totals) else None
+
+
+def analytics(sessions, subject_names, today, period="week"):
+    """Mọi số liệu cho thẻ thống kê: cột theo ngày, tổng, so với kỳ trước, tỉ lệ theo môn, chuỗi ngày học."""
+    period = period if period in PERIODS else "week"
+    days = period_days(today, period)
+    start, end = days[0], days[-1] + timedelta(days=1)
+    length = end - start
+    daily = _daily_minutes(sessions)
+    peak = max([daily.get(d.isoformat(), 0) for d in days] + [1])
+    bars = [{"date": d.isoformat(), "weekday": d.weekday(), "day": d.day, "minutes": daily.get(d.isoformat(), 0),
+             "percent": round(daily.get(d.isoformat(), 0) * 100 / peak), "is_today": d == today,
+             "future": d > today} for d in days]
+    total = total_minutes(sessions, start.isoformat(), end.isoformat())
+    before = total_minutes(sessions, (start - length).isoformat(), start.isoformat())
+    shares = subject_shares(sessions, subject_names, start.isoformat(), end.isoformat())
+    return {"period": period, "bars": bars, "total": total, "previous": before,
+            "change": percent_change(total, before), "shares": shares, "donut": donut_gradient(shares),
+            "streak": study_streak(sessions, today), "best_weekday": best_weekday(sessions),
+            "from": start.isoformat(), "to": days[-1].isoformat()}

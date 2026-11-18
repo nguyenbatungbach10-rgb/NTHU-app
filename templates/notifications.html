@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ _('Notifications') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
+
+{% block content %}
+<div class="notif">
+  <h1>{{ _('Notifications') }}</h1>
+  {# items do home_logic.notifications tính; ở đây chỉ hiện #}
+  {% if items %}
+    <ul class="agenda">
+      {% for n in items %}
+        <li class="row no-tile notif-{{ n.kind }} {{ 'urgent' if n.urgent }}">
+          <div class="row-main">
+            {% if n.kind == 'class' %}
+              <a class="row-title" href="{{ url_for('home') }}">{{ _('{name} starts at {time}', name=n.title, time=n.when) }}</a>
+              <span class="row-meta">{{ _('in {n} min', n=n.starts_in) }}{% if n.room %} &middot; {{ n.room }}{% endif %}</span>
+            {% elif n.kind in ('overdue', 'due') %}
+              <a class="row-title" href="{{ url_for('study_page') }}">{{ n.title }}</a>
+              <span class="row-meta">{% if n.kind == 'overdue' %}{{ _('Overdue since {date}', date=n.day) }}{% elif n.day == 'today' %}{{ _('Due today') }}{% else %}{{ _('Due tomorrow') }}{% endif %}</span>
+            {% else %}
+              <a class="row-title" href="{{ url_for('calendar_page') }}">{{ n.title }}</a>
+              <span class="row-meta">{{ _('Today') if n.day == 'today' else _('Tomorrow') }}{% if n.when %} &middot; {{ n.when }}{% endif %}</span>
+            {% endif %}
+          </div>
+          <div class="row-side"><span class="ag-tag">{{ {'overdue': _('Overdue'), 'due': _('Deadline'), 'class': _('Class'), 'event': _('Event')}[n.kind] }}</span></div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">{{ _('All clear. Nothing needs your attention right now.') }}</p>
+  {% endif %}
+  <p class="form-note">{{ _('Shows overdue tasks, tasks and events for today and tomorrow, and classes starting within an hour.') }}</p>
+</div>
+{% endblock %}

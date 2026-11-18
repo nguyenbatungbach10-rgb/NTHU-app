@@ -44,6 +44,8 @@ DYNAMIC_KEYS = {
     "All announcements", "Deadlines", "Talks & events",
     "Your account and all your data have been deleted.", "Tick the box to confirm that you want to delete your account.",
     "Your password has been changed. Other devices have been logged out.", "Your current password is wrong.",
+    "Calendar sync is off. The old link no longer works.", "Calendar sync settings saved.",
+    "You have a new calendar link. Add it again in your calendar app.",
     "{label}: {name}, {meters} m (about {minutes} min walk)", "Walking directions in Google Maps", "{n} floors",
 } | {label for _, label, _ in map_logic.CATEGORIES} | {label for _, label, _ in home_logic.STEPS}
 
@@ -170,7 +172,7 @@ def test_dates_and_durations():
 def test_js_strings():
     assert i18n.js_strings("en") == {}
     zh = i18n.js_strings("zh-TW")
-    assert set(zh) == set(i18n.JS_KEYS) and zh["Saved"] == "已儲存"
+    assert set(zh) == set(i18n.JS_KEYS) and zh["Added"] == "已加入"
 
 
 # ---------- route /settings và trang theo ngôn ngữ ----------
@@ -205,9 +207,9 @@ def test_pages_render_in_chinese(browser):
     home = browser.client.get("/").get_data(as_text=True)
     assert '<html lang="zh-TW" data-theme="dark">' in home
     assert "今天的課" in home and "行事曆" in home and "登出" in home
-    assert '"Saved": "已儲存"' in home or '"Saved":"已儲存"' in home or "\\u5df2\\u5132\\u5b58" in home
+    assert '"Added": "已加入"' in home or '"Added":"已加入"' in home or "\\u5df2\\u52a0\\u5165" in home
     pages = {"/calendar?month=2026-12": "2026年12月", "/calendar/year?year=2026": "1月", "/schedule": "星期一",
-             "/gpa": "累計 GPA", "/study": "讀書計畫", "/announcements": "校園公告", "/map": "校園地圖"}
+             "/gpa": "GPA 目標", "/study": "讀書計畫", "/announcements": "校園公告", "/map": "校園地圖"}
     for url, text in pages.items():
         assert text in browser.client.get(url).get_data(as_text=True), url
 
@@ -245,3 +247,14 @@ def test_map_details_translated(make_browser):
     d = b.client.get("/api/places/r3815072").get_json()
     assert d["category_label"] == "建築" and d["floors_text"] == "9 層樓"
     assert "公尺" in d["nearby"]["food"]["text"] and d["directions_label"].startswith("用 Google")
+
+
+def test_no_duplicate_keys_in_translation_tables():
+    """Khóa trùng trong dict Python thì bản sau đè bản trước mà không báo lỗi (từng làm "Next" dịch sai)."""
+    import ast
+    from pathlib import Path
+    tree = ast.parse((Path(__file__).resolve().parent.parent / "i18n.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            keys = [k.value for k in node.keys if isinstance(k, ast.Constant)]
+            assert len(keys) == len(set(keys)), {k for k in keys if keys.count(k) > 1}

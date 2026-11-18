@@ -103,6 +103,15 @@ CREATE TABLE IF NOT EXISTS classes (
 
 CREATE INDEX IF NOT EXISTS idx_classes_user ON classes (user_id);
 
+-- Link lịch bí mật (.ics) để Google / Apple Calendar tự đồng bộ; chọn đồng bộ những gì
+CREATE TABLE IF NOT EXISTS calendar_feeds (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    token   TEXT NOT NULL UNIQUE,
+    classes INTEGER NOT NULL DEFAULT 1,
+    events  INTEGER NOT NULL DEFAULT 1,
+    tasks   INTEGER NOT NULL DEFAULT 0
+);
+
 -- Các lần đăng nhập sai gần đây (login_guard.py quyết định có khóa hay không)
 CREATE TABLE IF NOT EXISTS login_failures (
     id    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -616,6 +625,47 @@ def delete_class(user_id, class_id):
     cursor = conn.execute("DELETE FROM classes WHERE id = ? AND user_id = ?", (class_id, user_id))
     conn.commit()
     return cursor.rowcount > 0
+
+
+# ======================= link lịch .ics =======================
+
+def _feed_row(row):
+    return {"user_id": row["user_id"], "token": row["token"], "classes": bool(row["classes"]),
+            "events": bool(row["events"]), "tasks": bool(row["tasks"])} if row else None
+
+
+def get_feed(user_id):
+    """Cài đặt đồng bộ lịch của user_id, chưa bật -> None."""
+    return _feed_row(get_db().execute("SELECT * FROM calendar_feeds WHERE user_id = ?", (user_id,)).fetchone())
+
+
+def get_feed_by_token(token):
+    """Tìm cài đặt theo link bí mật (route /calendar/feed/<token>.ics không cần đăng nhập)."""
+    return _feed_row(get_db().execute("SELECT * FROM calendar_feeds WHERE token = ?", (token,)).fetchone())
+
+
+def save_feed(user_id, token, classes, events, tasks):
+    """Bật / cập nhật đồng bộ lịch (một dòng mỗi người)."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO calendar_feeds (user_id, token, classes, events, tasks) VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(user_id) DO UPDATE SET token = excluded.token, classes = excluded.classes, "
+        "events = excluded.events, tasks = excluded.tasks",
+        (user_id, token, int(classes), int(events), int(tasks)),
+    )
+    conn.commit()
+
+
+def delete_feed(user_id):
+    """Tắt đồng bộ: link cũ hết dùng được."""
+    conn = get_db()
+    conn.execute("DELETE FROM calendar_feeds WHERE user_id = ?", (user_id,))
+    conn.commit()
+
+
+def list_open_tasks_with_due(user_id):
+    """Mọi việc CHƯA XONG có hạn nộp (cho file lịch)."""
+    return list_tasks_due(user_id, "0000-01-01", "9999-12-31")
 
 
 # ======================= số liệu cho trang chủ =======================

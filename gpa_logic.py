@@ -215,3 +215,67 @@ def current_semester(today):
     if today.month == 1:
         return f"{roc_year - 1}-1"
     return f"{roc_year - 1}-2"
+
+
+# ---------- Thẻ "GPA goal" và "Graduation credits" (giống mockup) ----------
+
+CLOSE_GAP = 0.15        # thấp hơn mục tiêu không quá 0.15 -> "Almost there"
+YEARS = 4               # chương trình 4 năm
+
+
+def goal_status(courses, target):
+    """So GPA hiện tại với mục tiêu.
+
+    Trả về {"projected": GPA nếu giữ phong độ hiện tại (= GPA tích lũy), "status": "on_track" | "close" |
+    "behind" | "no_grades", "gap": mục tiêu - GPA}. Chưa có điểm nào thì chưa đánh giá được.
+    """
+    current = gpa(courses)
+    if current is None:
+        return {"projected": None, "status": "no_grades", "gap": None}
+    gap = round(target - current, 2)
+    if gap <= 0:
+        status = "on_track"
+    elif gap <= CLOSE_GAP:
+        status = "close"
+    else:
+        status = "behind"
+    return {"projected": round(current, 2), "status": status, "gap": gap}
+
+
+def grades_needed(courses, target):
+    """Các môn chưa có điểm, mỗi môn kèm điểm chữ cần đạt (cùng mức trung bình cần cho học kỳ này).
+
+    Trả về list {"name", "credits", "letter"}; letter = None nếu không cần gì thêm ("achieved") hoặc không thể.
+    """
+    result = required_average(courses, target, credits_planned(courses))
+    letter = result["letter"] if result["status"] in ("possible", "achieved") else None
+    planned = sorted((c for c in courses if c["grade"] == ""), key=lambda c: (-c["credits"], c["name"].lower()))
+    return [{"name": c["name"], "credits": c["credits"], "letter": letter} for c in planned]
+
+
+def year_targets(credits_required, years=YEARS):
+    """Chia số tín chỉ cần để tốt nghiệp cho từng năm (năm đầu nhận phần dư): 128 -> [32, 32, 32, 32]."""
+    base, extra = divmod(credits_required, years)
+    return [base + (1 if i < extra else 0) for i in range(years)]
+
+
+def credits_by_year(courses, credits_required, current):
+    """Tín chỉ theo từng năm học: [{"year": 1, "earned", "planned", "target", "percent"}].
+
+    Năm học lấy từ mã học kỳ "115-1" (năm 115). Năm 1 = năm sớm nhất có môn, chưa có môn thì = học kỳ hiện tại.
+    Môn của năm thứ 5 trở đi được cộng vào năm 4.
+    """
+    years = [int(c["semester"].split("-")[0]) for c in courses if c["semester"][:3].isdigit()]
+    first = min(years) if years else int(current.split("-")[0])
+    rows = [{"year": i + 1, "earned": 0, "planned": 0, "target": t} for i, t in enumerate(year_targets(credits_required))]
+    for course in courses:
+        if not course["semester"][:3].isdigit():
+            continue
+        index = min(max(int(course["semester"].split("-")[0]) - first, 0), YEARS - 1)
+        if course["grade"] == "":
+            rows[index]["planned"] += course["credits"]
+        elif is_passed(course["grade"]):
+            rows[index]["earned"] += course["credits"]
+    for row in rows:
+        row["percent"] = min(100, round((row["earned"] + row["planned"]) * 100 / row["target"])) if row["target"] else 0
+    return rows

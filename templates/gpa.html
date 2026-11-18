@@ -20,6 +20,11 @@
 {% endmacro %}
 
 {% block content %}
+{# Mockup: tab "Study" gồm cả Study và GPA -> nút chuyển nhanh giữa hai trang #}
+<nav class="seg page-switch" aria-label="{{ _('Study') }}">
+  <a class="seg-btn" href="{{ url_for('study_page') }}" {% if request.endpoint == 'study_page' %}aria-current="page"{% endif %}>{{ _('Study planning') }}</a>
+  <a class="seg-btn" href="{{ url_for('gpa_page') }}" {% if request.endpoint == 'gpa_page' %}aria-current="page"{% endif %}>{{ _('Credits & GPA') }}</a>
+</nav>
 <div class="cal-bar">
   <h1>{{ _('Credits & GPA') }}</h1>
   <div class="cal-nav">
@@ -27,59 +32,83 @@
   </div>
 </div>
 
-<section class="stats">
-  <article class="stat">
-    <span class="stat-label">{{ _('Cumulative GPA') }}</span>
-    <span class="stat-value">{{ fmt(overview.gpa) }}</span>
-    <span class="stat-note">{{ _('out of 4.30') }}</span>
-  </article>
-  <article class="stat">
-    <span class="stat-label">{{ _('Credits earned') }}</span>
-    <span class="stat-value">{{ overview.credits_earned }} <small>/ {{ overview.credits_required }}</small></span>
-    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
-         aria-valuenow="{{ overview.progress_percent }}"><span style="width: {{ overview.progress_percent }}%"></span></div>
-    <span class="stat-note">{{ _('{p}% done', p=overview.progress_percent) }}
-      {%- if overview.credits_planned %} &middot; {{ _('{n} planned', n=overview.credits_planned) }}{% endif %}</span>
-  </article>
-  <article class="stat">
-    <span class="stat-label">{{ _('Target GPA') }}</span>
-    <span class="stat-value">{{ '%.2f'|format(goals.target_gpa) }}</span>
-    <span class="stat-note">{{ _('default, change it below') if goals.is_default else _('your goal') }}</span>
-  </article>
-  <article class="stat">
-    <span class="stat-label">{{ _('Credits left') }}</span>
-    <span class="stat-value">{{ overview.credits_remaining }}</span>
-    <span class="stat-note">
-      {% if overview.credits_per_semester %}{{ _('about {n} per semester over {s} semesters', n=overview.credits_per_semester, s=overview.semesters_left) }}{% else %}{{ _('no semesters left in 4 years') }}{% endif %}
-    </span>
-  </article>
-</section>
-
-<section class="advice">
-  <h2>{{ _('What do I need?') }}</h2>
-  <p>{{ advice(overview.needed_term, _('your planned courses')) }}</p>
-  <p>{{ advice(overview.needed_overall, _('all remaining credits')) }}</p>
-</section>
-
-<section class="goal-box">
-  <h2>{{ _('My goals') }}</h2>
-  <form id="goal-form" class="goal-form">
-    <div class="field">
-      <label for="goal-gpa">{{ _('Target GPA') }} <small>(0 - 4.3)</small></label>
-      <input id="goal-gpa" name="target_gpa" type="number" step="0.01" min="0" max="4.3"
-             value="{{ '%.2f'|format(goals.target_gpa) }}" required>
+{# ===== Thẻ "GPA goal" (giống mockup). Số liệu do gpa_logic tính: goal_status, grades_needed. ===== #}
+{% set status_label = {'on_track': _('On track'), 'close': _('Almost there'), 'behind': _('Below target'), 'no_grades': _('No grades yet')} %}
+<section class="card gpa-goal">
+  <h2 class="card-title">{{ _('GPA goal') }}</h2>
+  <div class="goal-top">
+    <div>
+      <span class="goal-big"><output id="goal-value" for="goal-range">{{ '%.2f'|format(goals.target_gpa) }}</output> <small>/ 4.30</small></span>
+      <span class="goal-cap">{{ _('Your target') }}</span>
     </div>
+    <div class="goal-now">
+      <span class="goal-proj is-{{ goal.status }}">{{ fmt(goal.projected) }}</span>
+      <span class="goal-cap">{{ _('Current GPA') }}</span>
+      <span class="status-chip is-{{ goal.status }}">{{ status_label[goal.status] }}</span>
+    </div>
+  </div>
+
+  <form id="goal-form" class="goal-form">
+    {# Thanh kéo và ô số là cùng một giá trị; JavaScript chỉ đồng bộ hai ô, Python kiểm tra khi lưu #}
+    <input id="goal-range" class="goal-range" type="range" min="2" max="4.3" step="0.05"
+           value="{{ '%.2f'|format(goals.target_gpa) }}" aria-label="{{ _('Target GPA') }}">
+    <div class="range-scale" aria-hidden="true"><span>2.0</span><span>3.0</span><span>4.3</span></div>
+    <div class="goal-inputs">
+      <div class="field">
+        <label for="goal-gpa">{{ _('Target GPA') }} <small>(0 - 4.3)</small></label>
+        <input id="goal-gpa" name="target_gpa" type="number" step="0.01" min="0" max="4.3"
+               value="{{ '%.2f'|format(goals.target_gpa) }}" required>
+      </div>
+      <button class="btn small" type="submit">{{ _('Save goals') }}</button>
+    </div>
+  </form>
+  <p class="form-error" id="goal-error" role="alert"></p>
+
+  {% if needed %}
+    <h3 class="card-sub">{{ _('Grades you need') }}</h3>
+    <ul class="need-list">
+      {% for c in needed %}
+        <li><span class="need-name">{{ c.name }}</span><span class="need-cr">{{ _('{n} cr', n=c.credits) }}</span>
+          <span class="grade-chip {{ 'none' if not c.letter }}">{{ c.letter or '—' }}</span></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <p class="advice-line">{{ advice(overview.needed_term, _('your planned courses')) }}</p>
+  <p class="advice-line">{{ advice(overview.needed_overall, _('all remaining credits')) }}</p>
+</section>
+
+{# ===== Thẻ "Graduation credits": tổng và từng năm (gpa_logic.credits_by_year) ===== #}
+<section class="card grad-credits">
+  <div class="card-head">
+    <h2 class="card-title">{{ _('Graduation credits') }}</h2>
+    <span class="muted">{{ _('4-year plan') }}</span>
+  </div>
+  <p class="credits-big"><strong>{{ overview.credits_earned }}</strong> / {{ overview.credits_required }} {{ _('credits') }}
+    {%- if overview.credits_planned %} &middot; {{ _('{n} in progress', n=overview.credits_planned) }}{% endif %}</p>
+  <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ overview.progress_percent }}">
+    <span style="width: {{ overview.progress_percent }}%"></span></div>
+  <div class="year-bars">
+    {% for y in by_year %}
+      <div class="year">
+        <div class="bar thin"><span style="width: {{ y.percent }}%"></span></div>
+        <span class="year-name">{{ _('Year {n}', n=y.year) }}</span>
+        <span class="year-num">{{ y.earned + y.planned }} / {{ y.target }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="goal-inputs">
     <div class="field">
       <label for="goal-credits">{{ _('Credits to graduate') }}</label>
-      <input id="goal-credits" name="credits_required" type="number" step="1" min="1" max="300"
+      {# form="goal-form": ô này nằm ở thẻ khác nhưng vẫn gửi cùng form mục tiêu #}
+      <input id="goal-credits" name="credits_required" form="goal-form" type="number" step="1" min="1" max="300"
              value="{{ goals.credits_required }}" required>
     </div>
-    <button class="btn small" type="submit">{{ _('Save goals') }}</button>
-  </form>
-  {% if goals.is_default %}
-    <p class="form-note">{{ _("The 128 credits is only a default. Check your department's graduation requirement and change it.") }}</p>
-  {% endif %}
-  <p class="form-error" id="goal-error" role="alert"></p>
+    <button class="btn small ghost" type="submit" form="goal-form">{{ _('Save goals') }}</button>
+  </div>
+  <p class="form-note">
+    {% if overview.credits_per_semester %}{{ _('{left} credits left: about {n} per semester over {s} semesters.', left=overview.credits_remaining, n=overview.credits_per_semester, s=overview.semesters_left) }}{% endif %}
+    {% if goals.is_default %}{{ _("The 128 credits is only a default. Check your department's graduation requirement and change it.") }}{% endif %}
+  </p>
 </section>
 
 {% if not has_courses %}

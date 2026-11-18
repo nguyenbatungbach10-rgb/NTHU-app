@@ -21,6 +21,18 @@ async function api(method, url, body) {
   return data;
 }
 
+// ---------- Thông báo nhỏ (toast) nổi lên vài giây ----------
+let toastTimer;
+function showToast(title, sub) {
+  const box = document.getElementById("toast");
+  if (!box) return;
+  box.querySelector(".toast-title").textContent = title;
+  box.querySelector(".toast-sub").textContent = sub || "";
+  box.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { box.hidden = true; }, 3500);
+}
+
 // ---------- Nút "Save to Calendar" trên trang Announcements ----------
 document.querySelectorAll("[data-save]").forEach((button) => {
   button.addEventListener("click", async () => {
@@ -32,7 +44,10 @@ document.querySelectorAll("[data-save]").forEach((button) => {
         description: button.dataset.office,
         source_url: button.dataset.url,
       });
-      button.textContent = `${t("Saved")} ✓`;
+      button.textContent = `✓ ${t("Added")}`;
+      button.classList.add("is-added");
+      const kind = button.dataset.kind === "deadline" ? "Deadline added to your calendar" : "Added to your calendar";
+      showToast(t(kind), `${button.dataset.title} · ${button.dataset.date}`);
     } catch (error) {
       button.disabled = false;
       button.textContent = t("Try again");
@@ -170,6 +185,16 @@ if (courseDialog) {
 }
 
 const goalForm = document.getElementById("goal-form");
+
+// Thanh kéo mục tiêu GPA <-> ô số: chỉ hiển thị cho khớp nhau, Python kiểm tra khi bấm Save
+(() => {
+  const range = document.getElementById("goal-range");
+  const number = document.getElementById("goal-gpa");
+  const shown = document.getElementById("goal-value");
+  if (!range || !number) return;
+  range.addEventListener("input", () => { number.value = Number(range.value).toFixed(2); shown.value = number.value; });
+  number.addEventListener("input", () => { range.value = number.value; if (number.value) shown.value = Number(number.value).toFixed(2); });
+})();
 
 if (goalForm) {
   goalForm.addEventListener("submit", async (submitEvent) => {
@@ -350,25 +375,29 @@ document.querySelectorAll("[data-class]").forEach((card) => {
 
 // ---------- Menu 3 gạch (thả xuống) ----------
 // Chỉ đóng/mở giao diện: bấm nút, bấm ra ngoài, hoặc nhấn Esc để đóng.
+// Hai nút mở cùng một menu: nút ☰ ở thanh trên (máy tính) và tab "More" dưới đáy (điện thoại).
 (() => {
-  const button = document.getElementById("menu-button");
+  const buttons = [...document.querySelectorAll("[data-menu-toggle]")];
   const panel = document.getElementById("site-menu");
-  if (!button || !panel) return;
+  if (!buttons.length || !panel) return;
+  let opener = buttons[0];
 
   function setOpen(open) {
-    button.setAttribute("aria-expanded", String(open));
-    button.setAttribute("aria-label", open ? button.dataset.labelClose : button.dataset.labelOpen);
+    buttons.forEach((b) => b.setAttribute("aria-expanded", String(open)));
+    const top = document.getElementById("menu-button");
+    if (top) top.setAttribute("aria-label", open ? top.dataset.labelClose : top.dataset.labelOpen);
     panel.hidden = !open;
+    panel.classList.toggle("as-sheet", open && opener !== top);   // mở từ tab dưới đáy -> bảng trượt từ dưới
   }
 
-  button.addEventListener("click", () => setOpen(panel.hidden));
+  buttons.forEach((b) => b.addEventListener("click", () => { opener = b; setOpen(panel.hidden); }));
   document.addEventListener("click", (event) => {
-    if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
+    if (!panel.hidden && !panel.contains(event.target) && !buttons.some((b) => b.contains(event.target))) setOpen(false);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !panel.hidden) {
       setOpen(false);
-      button.focus();
+      opener.focus();
     }
   });
 })();
@@ -396,6 +425,20 @@ document.querySelector("[data-theme-toggle]")?.addEventListener("click", (event)
   event.currentTarget.value = dark ? "light" : "dark";
 });
 
+
+// Nút "Copy": chép chữ trong ô (link lịch) vào bộ nhớ tạm
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const field = document.querySelector(button.dataset.copy);
+    try {
+      await navigator.clipboard.writeText(field.value);
+    } catch {
+      field.select();
+      document.execCommand("copy");
+    }
+    showToast(t("Copied"), field.value);
+  });
+});
 
 // Đăng ký service worker (static/sw.js) để web cài được như app và có trang offline.
 if ("serviceWorker" in navigator) {

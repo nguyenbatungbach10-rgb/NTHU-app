@@ -18,7 +18,7 @@
 {% set here = request.full_path.rstrip('?') %}
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   {# Token chống CSRF: static/app.js đọc từ đây để gắn vào các request fetch() #}
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}{{ _('NTHU Campus Assistant') }}{% endblock %}</title>
@@ -42,6 +42,7 @@
     <a class="brand" href="{{ url_for('home') }}">
       <span class="brand-mark" aria-hidden="true"></span>
       <span class="brand-name">{{ _('NTHU Campus Assistant') }}</span>
+      <span class="brand-short">{{ _('NTHU App') }}</span>
     </a>
 
     <div class="topbar-right">
@@ -59,12 +60,19 @@
           <span class="moon" aria-hidden="true">{{ icon('moon') }}</span><span class="sun" aria-hidden="true">{{ icon('sun') }}</span>
         </button>
       </form>
+      {% if current_user %}
+        {# Chuông: số việc cần chú ý do Python đếm (home_logic.notifications) #}
+        <a class="quick-btn bell" href="{{ url_for('notifications_page') }}"
+           aria-label="{{ _('Notifications') }}{% if notification_count %}: {{ notification_count }}{% endif %}">
+          {{ icon('bell') }}{% if notification_count %}<span class="badge">{{ notification_count if notification_count < 10 else '9+' }}</span>{% endif %}
+        </a>
+      {% endif %}
       {% if not current_user %}
         <a class="top-login" href="{{ url_for('login') }}">{{ _('Log in') }}</a>
         <a class="btn small top-signup" href="{{ url_for('signup') }}">{{ _('Sign up') }}</a>
       {% endif %}
       <div class="menu">
-        <button class="menu-button" id="menu-button" type="button" aria-expanded="false"
+        <button class="menu-button" id="menu-button" type="button" aria-expanded="false" data-menu-toggle
                 aria-controls="site-menu" aria-label="{{ _('Open menu') }}"
                 data-label-open="{{ _('Open menu') }}" data-label-close="{{ _('Close menu') }}">
           <span class="menu-bars" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -123,6 +131,24 @@
 
     {% block content %}{% endblock %}
   </main>
+
+  {# Thanh tab dưới đáy, chỉ hiện trên điện thoại (CSS). Tab nào sáng do Python chọn (home_logic.current_tab). #}
+  <nav class="tabbar" aria-label="{{ _('Quick navigation') }}">
+    {% for endpoint, label, icon_name in tabs %}
+      <a class="tab" href="{{ url_for(endpoint) }}" {% if current_tab == endpoint %}aria-current="page"{% endif %}>
+        {{ icon(icon_name) }}<span>{{ _(label) }}</span>
+      </a>
+    {% endfor %}
+    <button class="tab" type="button" data-menu-toggle aria-controls="site-menu" aria-expanded="false"
+            {% if current_tab == 'more' %}data-current{% endif %}>
+      {{ icon('more') }}<span>{{ _('More') }}</span>
+    </button>
+  </nav>
+
+  {# Thông báo nhỏ nổi lên rồi tự ẩn (static/app.js gọi showToast) #}
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    {{ icon('check') }}<div><strong class="toast-title"></strong><small class="toast-sub"></small></div>
+  </div>
 
   <footer class="footer">{{ _('I2P Final Project') }} &middot; {{ _('NTHU student project, not an official NTHU site') }}</footer>
   {# Chữ dùng trong JavaScript (thông báo, nút); tiếng Anh thì để trống và JS dùng chữ gốc #}

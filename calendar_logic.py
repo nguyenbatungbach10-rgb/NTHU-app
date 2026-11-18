@@ -254,3 +254,70 @@ def mark_saved(items, saved, today=None):
             saved=(event_title, suggestion["date"]) in saved,
         ))
     return result
+
+
+# ---------- Tuần + lịch trong ngày (giao diện điện thoại, giống mockup) ----------
+
+def parse_day(text):
+    """"2026-11-20" -> date; sai định dạng hoặc ngoài MIN_YEAR..MAX_YEAR -> None."""
+    if not is_iso_date(text or ""):
+        return None
+    day = date.fromisoformat(text)
+    return day if MIN_YEAR <= day.year <= MAX_YEAR else None
+
+
+def week_start(day):
+    """Thứ Hai của tuần chứa `day`."""
+    return day - timedelta(days=day.weekday())
+
+
+def day_counts(day, classes, events, tasks):
+    """Đếm lớp / sự kiện / hạn chót của một ngày -> {"class": n, "event": n, "deadline": n}."""
+    iso = day.isoformat()
+    return {"class": sum(1 for c in classes if c["weekday"] == day.weekday()),
+            "event": sum(1 for e in events if e["date"] == iso),
+            "deadline": sum(1 for t in tasks if t["due_date"] == iso)}
+
+
+def week_strip(selected, today, classes, events, tasks):
+    """7 ngày (Thứ 2 -> CN) của tuần chứa `selected`, mỗi ngày kèm số lớp / sự kiện / hạn chót (để vẽ chấm màu)."""
+    first = week_start(selected)
+    days = []
+    for offset in range(7):
+        day = first + timedelta(days=offset)
+        days.append({"iso": day.isoformat(), "day": day.day, "weekday": day.weekday(),
+                     "is_today": day == today, "is_selected": day == selected,
+                     "counts": day_counts(day, classes, events, tasks)})
+    return days
+
+
+def day_agenda(day, classes, events, tasks):
+    """Mọi thứ của một ngày trong MỘT danh sách (giống "Today's schedule" của mockup).
+
+    Mỗi mục: {"kind": "class" | "event" | "deadline", "start", "end", "title", "sub", "data"}.
+    Thứ tự: sự kiện cả ngày trước, rồi các mục có giờ theo giờ, hạn chót (việc cần làm) cuối cùng.
+    """
+    iso = day.isoformat()
+    timed, all_day, due = [], [], []
+    for c in classes:
+        if c["weekday"] == day.weekday():
+            timed.append({"kind": "class", "start": c["start"], "end": c["end"], "title": c["name"],
+                          "sub": c.get("room", ""), "data": c})
+    for e in events:
+        if e["date"] == iso:
+            item = {"kind": "event", "start": e["time"], "end": "", "title": e["title"],
+                    "sub": e.get("description", ""), "data": e}
+            (timed if e["time"] else all_day).append(item)
+    for t in tasks:
+        if t["due_date"] == iso:
+            due.append({"kind": "deadline", "start": "", "end": "", "title": t["title"], "sub": "", "data": t})
+    timed.sort(key=lambda item: (item["start"], item["kind"] != "class", item["title"]))
+    return all_day + timed + due
+
+
+def agenda_summary(agenda):
+    """Số mục theo loại cho các chip "3 classes · 2 events · 1 deadline" (bỏ loại có 0 mục)."""
+    counts = {"class": 0, "event": 0, "deadline": 0}
+    for item in agenda:
+        counts[item["kind"]] += 1
+    return [(kind, n) for kind, n in counts.items() if n]

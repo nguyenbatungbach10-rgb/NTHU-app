@@ -136,9 +136,9 @@ def test_announcements_save_button_states(browser, make_browser):
     assert saved.status_code == 201
 
     html = browser.client.get("/announcements").get_data(as_text=True)
-    assert html.count("data-save") == 2 and "Saved &#10003;" in html
+    assert html.count("data-save") == 2 and "&#10003; Added" in html
 
     # người khác không thấy trạng thái "Saved" của tôi (cache dùng chung không bị làm bẩn)
     other = make_browser()
     other.signup("other@example.com", "password123")
-    assert "Saved &#10003;" not in other.client.get("/announcements").get_data(as_text=True)
+    assert "&#10003; Added" not in other.client.get("/announcements").get_data(as_text=True)

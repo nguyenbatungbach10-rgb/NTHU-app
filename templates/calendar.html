@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ _('Calendar') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
@@ -28,10 +29,74 @@
       <a class="btn small ghost" href="{{ url_for('calendar_page') }}">{{ _('Today') }}</a>
     {% endif %}
     <a class="btn small ghost" href="{{ url_for('calendar_page', month=next_month) }}" aria-label="{{ _('Next month') }}">{{ _('Next') }} &rarr;</a>
-    <a class="btn small ghost" href="{{ url_for('calendar_year_page', year=year) }}">{{ _('Year view') }}</a>
+    <a class="btn small ghost keep" href="{{ url_for('calendar_year_page', year=year) }}">{{ _('Year view') }}</a>
+    <a class="btn small ghost keep" href="{{ url_for('account_page') }}#calendar-sync">{{ _('Sync to phone') }}</a>
     <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ {{ _('Add event') }}</button>
   </div>
 </div>
+
+{# ===== Điện thoại (giống mockup): dải 7 ngày có chấm màu + mọi thứ của ngày đã chọn. Python tính sẵn
+   week (calendar_logic.week_strip), agenda (day_agenda) và summary (agenda_summary). ===== #}
+{% set kind_label = {'class': _('Class'), 'event': _('Event'), 'deadline': _('Deadline')} %}
+<section class="week-view" aria-label="{{ _('Week') }}">
+  <div class="week-nav">
+    <a href="{{ url_for('calendar_page', day=prev_week) }}" aria-label="{{ _('Previous week') }}">&lsaquo;</a>
+    <div class="week-strip">
+      {% for d in week %}
+        <a class="wday {{ 'is-sel' if d.is_selected }} {{ 'is-today' if d.is_today }}"
+           href="{{ url_for('calendar_page', day=d.iso) }}" {% if d.is_selected %}aria-current="date"{% endif %}>
+          <span class="wd-name">{{ weekday_short()[d.weekday] }}</span>
+          <span class="wd-num">{{ d.day }}</span>
+          <span class="dots" aria-hidden="true">
+            {%- for kind in ['class', 'event', 'deadline'] %}{% if d.counts[kind] %}<i class="dot k-{{ kind }}"></i>{% endif %}{% endfor -%}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+    <a href="{{ url_for('calendar_page', day=next_week) }}" aria-label="{{ _('Next week') }}">&rsaquo;</a>
+  </div>
+
+  {% if summary %}
+    <p class="agenda-chips">
+      {% for kind, n in summary %}
+        <span class="chip-count"><i class="dot k-{{ kind }}" aria-hidden="true"></i>
+          {%- if kind == 'class' %}{{ _('{n} class', n=n) if n == 1 else _('{n} classes', n=n) }}
+          {%- elif kind == 'event' %}{{ _('{n} event', n=n) if n == 1 else _('{n} events', n=n) }}
+          {%- else %}{{ _('{n} deadline', n=n) if n == 1 else _('{n} deadlines', n=n) }}{% endif %}</span>
+      {% endfor %}
+    </p>
+  {% endif %}
+
+  <h2 class="agenda-title">{{ _("Today's schedule") if is_today else weekday_long(day.weekday()) ~ ' ' ~ day.isoformat() }}</h2>
+  {% if agenda %}
+    <ul class="agenda-list">
+      {% for item in agenda %}{% set x = item.data %}
+        <li class="ag k-{{ item.kind }}">
+          <span class="ag-time">
+            {% if item.kind == 'deadline' %}<b>{{ _('due') }}</b>
+            {% elif item.start %}<b>{{ item.start }}</b>{% if item.end %}<small>{{ item.end }}</small>{% endif %}
+            {% else %}<b>{{ _('All day') }}</b>{% endif %}
+          </span>
+          {% if item.kind == 'event' %}
+            {# Bấm sự kiện -> hộp thoại sửa (dùng chung với lưới tháng) #}
+            <button class="ag-main" type="button" data-event data-id="{{ x.id }}" data-title="{{ x.title }}"
+                    data-date="{{ x.date }}" data-time="{{ x.time }}" data-description="{{ x.description }}"
+                    data-url="{{ x.source_url }}">
+          {% else %}
+            <a class="ag-main" href="{{ url_for('schedule_page') if item.kind == 'class' else url_for('study_page') }}">
+          {% endif %}
+              <strong>{{ item.title }}</strong>
+              {% if item.sub %}<small>{% if item.kind == 'class' %}{{ icon('pin') }}{% endif %}{{ item.sub }}</small>{% endif %}
+          {% if item.kind == 'event' %}</button>{% else %}</a>{% endif %}
+          <span class="ag-tag">{{ kind_label[item.kind] }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">{{ _('Nothing planned for this day.') }}</p>
+  {% endif %}
+  <button class="fab" type="button" data-add data-date="{{ day.isoformat() }}" aria-label="{{ _('Add event') }}">+</button>
+</section>
 
 <div class="cal-wrap">
   <div class="cal">

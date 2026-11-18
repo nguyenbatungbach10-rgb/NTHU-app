@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ _('Account') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
@@ -7,6 +8,49 @@
   <h1>{{ _('Account') }}</h1>
   <p class="account-who">{{ current_user.email }}
     {% if current_user.created_at %}<small>{{ _('Member since {date}', date=current_user.created_at[:10]) }}</small>{% endif %}</p>
+
+  {# Đồng bộ lịch (.ics): link bí mật cho Google / Apple Calendar. Python tạo file trong ics_export.py #}
+  <section class="form-card sync" id="calendar-sync">
+    <h2>{{ _('Calendar sync') }}</h2>
+    <p class="form-note">{{ _('Keep your schedule in the calendar app you already use. Your phone gets updates automatically (one-way: changes made here appear there).') }}</p>
+    <form method="post" action="{{ url_for('calendar_sync') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="setting-name">{{ _('What to sync') }}</span>
+      {% for key, label in [('classes', 'Classes'), ('events', 'Events and saved deadlines'), ('tasks', 'Study tasks')] %}
+        <label class="switch-row">
+          <span>{{ _(label) }}</span>
+          <input type="checkbox" role="switch" name="{{ key }}" value="1"
+                 {{ 'checked' if (feed[key] if feed else key != 'tasks') }}>
+        </label>
+      {% endfor %}
+      <div class="sync-actions">
+        <button class="btn small" type="submit" name="action" value="save">{{ _('Save') if feed else _('Turn on calendar sync') }}</button>
+        {% if feed %}
+          <button class="btn small ghost" type="submit" name="action" value="reset">{{ _('New link') }}</button>
+          <button class="btn small ghost" type="submit" name="action" value="off">{{ _('Turn off') }}</button>
+        {% endif %}
+      </div>
+    </form>
+    {% if feed %}
+      <div class="sync-links">
+        <a class="sync-app" href="{{ links.google }}" target="_blank" rel="noopener">
+          <span class="app-icon g" aria-hidden="true">{{ icon('calendar') }}</span>
+          <span><strong>Google Calendar</strong><small>{{ _('Opens Google Calendar and adds this calendar') }}</small></span>
+        </a>
+        <a class="sync-app" href="{{ links.webcal }}">
+          <span class="app-icon a" aria-hidden="true">{{ icon('calendar') }}</span>
+          <span><strong>Apple Calendar</strong><small>{{ _('On iPhone, iPad or Mac: tap and choose Subscribe') }}</small></span>
+        </a>
+      </div>
+      <label class="field" for="feed-url"><span class="setting-name">{{ _('Your private calendar link') }}</span></label>
+      <div class="copy-row">
+        <input id="feed-url" type="text" readonly value="{{ links.url }}">
+        <button class="btn small ghost" type="button" data-copy="#feed-url">{{ _('Copy') }}</button>
+      </div>
+      <p class="form-note">{{ _('Anyone with this link can see these items, so keep it private. "New link" stops the old one.') }}
+        {{ _('Google Calendar checks the link a few times a day, so changes can take a few hours to appear.') }}</p>
+    {% endif %}
+  </section>
 
   {# Đổi mật khẩu: phải nhập mật khẩu hiện tại (người mượn máy đang mở sẵn web cũng không đổi được) #}
   <form class="form-card" method="post" action="{{ url_for('change_password') }}">

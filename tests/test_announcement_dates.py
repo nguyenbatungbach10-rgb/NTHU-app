@@ -25,12 +25,12 @@ def test_save_button_carries_date_from_title(browser, monkeypatch):
 def test_saved_state_follows_the_title_date(browser, monkeypatch):
     use_items(monkeypatch)
     page = browser.client.get("/announcements").data.decode()
-    assert page.count("Save to Calendar") == 2 and "Saved &#10003;" not in page
+    assert page.count("Save to Calendar") == 2 and "&#10003; Added" not in page
     # lưu đúng như nút gửi: tiêu đề + ngày hạn
     response = browser.api("POST", "/api/events", {"title": ITEMS[0]["title"], "date": "2026-11-20"})
     assert response.status_code == 201
     page = browser.client.get("/announcements").data.decode()
-    assert page.count("Saved &#10003;") == 1
+    assert page.count("&#10003; Added") == 1
 
 
 def test_other_users_saved_state_is_not_shared(browser, make_browser, monkeypatch):
@@ -38,5 +38,5 @@ def test_other_users_saved_state_is_not_shared(browser, make_browser, monkeypatc
     browser.api("POST", "/api/events", {"title": ITEMS[0]["title"], "date": "2026-11-20"})
     other = make_browser()
     other.signup("b@example.com")
-    assert "Saved &#10003;" not in other.client.get("/announcements").data.decode()
+    assert "&#10003; Added" not in other.client.get("/announcements").data.decode()
     assert not hasattr(ITEMS[0], "saved") and "event_date" not in ITEMS[0]      # cache dùng chung không bị sửa

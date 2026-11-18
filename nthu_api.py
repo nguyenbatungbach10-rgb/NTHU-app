@@ -255,6 +255,26 @@ def fetch_announcements():
     return _remember(SAMPLE_ANNOUNCEMENTS, {"kind": "sample", "reason": reason}, now)
 
 
+def highlight(text, query):
+    """Chia `text` thành các đoạn [(chữ, có_khớp)] để tô vàng từ khóa tìm kiếm (không phân biệt hoa thường).
+
+    Ví dụ highlight("Taiwan Scholarship", "scholar") -> [("Taiwan ", False), ("Scholar", True), ("ship", False)].
+    Template in đoạn khớp trong <mark>; Jinja vẫn tự escape từng đoạn nên an toàn.
+    """
+    query = (query or "").strip()
+    if not query:
+        return [(text, False)]
+    parts, pos = [], 0
+    for m in re.finditer(re.escape(query), text, re.IGNORECASE):
+        if m.start() > pos:
+            parts.append((text[pos:m.start()], False))
+        parts.append((m[0], True))
+        pos = m.end()
+    if pos < len(text):
+        parts.append((text[pos:], False))
+    return parts or [(text, False)]
+
+
 STALE_HOURS = 48   # bản lưu cũ hơn 2 ngày = việc tự cập nhật (GitHub Actions) có vấn đề -> hiện cảnh báo vàng
 
 

@@ -43,6 +43,7 @@ python -m pytest
 ```
 
 ## Docs
+- `GIAI_THICH_MOBILE.md`: phone layout like the pitch mockups (tab bar, week agenda, GPA cards, study charts, calendar sync, notifications)
 - `GIAI_THICH_CAITIEN.md`: fixes and improvements after the review (deadlines view, login lockout, ...)
 - `CALENDAR_API.md`: the Calendar API
 - `GIAI_THICH.md`, `GIAI_THICH_ACCOUNT_CALENDAR.md`, `GIAI_THICH_GPA.md`, `GIAI_THICH_STUDY.md`, `GIAI_THICH_SCHEDULE.md`, `GIAI_THICH_DEADLINE.md`: code walkthroughs (Vietnamese)

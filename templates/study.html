@@ -30,6 +30,11 @@
 {% endmacro %}
 
 {% block content %}
+{# Mockup: tab "Study" gồm cả Study và GPA -> nút chuyển nhanh giữa hai trang #}
+<nav class="seg page-switch" aria-label="{{ _('Study') }}">
+  <a class="seg-btn" href="{{ url_for('study_page') }}" {% if request.endpoint == 'study_page' %}aria-current="page"{% endif %}>{{ _('Study planning') }}</a>
+  <a class="seg-btn" href="{{ url_for('gpa_page') }}" {% if request.endpoint == 'gpa_page' %}aria-current="page"{% endif %}>{{ _('Credits & GPA') }}</a>
+</nav>
 <div class="cal-bar">
   <h1>{{ _('Study planning') }}</h1>
   <div class="cal-nav">
@@ -98,20 +103,54 @@
   </section>
 </div>
 
-<section class="panel">
+<section class="panel" id="study-time">
   <h2>{{ _('Study time') }}</h2>
-  {% if week_rows %}
-    <h3 class="sub">{{ _('This week by subject') }}</h3>
-    {% set top = week_rows[0].minutes %}
-    <ul class="bars">
-      {% for row in week_rows %}
-        <li>
-          <span class="bar-name">{{ _(row.name) if row.subject_id is none else row.name }}</span>
-          <div class="bar"><span style="width: {{ (row.minutes * 100 / top) | round | int }}%"></span></div>
-          <span class="bar-value">{{ fmt_minutes(row.minutes) }}</span>
-        </li>
-      {% endfor %}
-    </ul>
+  {# Thống kê (study_logic.analytics tính hết; ở đây chỉ vẽ bằng CSS: cột theo ngày + biểu đồ tròn) #}
+  {% set a = stats_chart %}
+  <nav class="seg small period-tabs" aria-label="{{ _('Period') }}">
+    {% for code, label in [('week', 'Week'), ('month', 'Last 30 days')] %}
+      <a class="seg-btn" href="{{ url_for('study_page', period=None if code == 'week' else code) }}#study-time"
+         {% if a.period == code %}aria-current="page"{% endif %}>{{ _(label) }}</a>
+    {% endfor %}
+  </nav>
+  <div class="chart-head">
+    <strong class="chart-total">{{ fmt_minutes(a.total) }}</strong>
+    {% if a.change is not none %}
+      <span class="change {{ 'up' if a.change >= 0 else 'down' }}">
+        {{ _('{p}% vs previous week', p=('+' if a.change > 0 else '') ~ a.change) if a.period == 'week' else _('{p}% vs previous 30 days', p=('+' if a.change > 0 else '') ~ a.change) }}</span>
+    {% endif %}
+  </div>
+  <div class="day-bars {{ 'many' if a.bars | length > 7 }}" role="img"
+       aria-label="{{ _('Study time per day from {start} to {end}', start=a['from'], end=a.to) }}">
+    {% for b in a.bars %}
+      <div class="day-bar {{ 'is-today' if b.is_today }} {{ 'is-future' if b.future }}" title="{{ b.date }}: {{ fmt_minutes(b.minutes) }}">
+        <span class="col"><span style="height: {{ b.percent }}%"></span></span>
+        <small>{% if a.period == 'week' %}{{ weekday_initials()[b.weekday] }}{% elif b.day % 5 == 0 or b.is_today %}{{ b.day }}{% endif %}</small>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if a.shares %}
+    <h3 class="sub">{{ _('Time by subject') }}</h3>
+    <div class="donut-row">
+      <div class="donut" style="background: {{ a.donut }}"><span>{{ fmt_minutes(a.total) }}</span></div>
+      <ul class="legend">
+        {% for s in a.shares %}
+          <li><i class="swatch" style="background: var(--c{{ s.slot }})"></i>
+            <span>{{ _(s.name) if s.subject_id in (none, 'other') else s.name }}</span><b>{{ s.percent }}%</b></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if a.streak or a.best_weekday is not none %}
+    <div class="streak">
+      <span class="flame" aria-hidden="true">&#128293;</span>
+      <div>
+        <strong>{{ _('{n}-day study streak', n=a.streak) if a.streak else _('No study streak yet') }}</strong>
+        {% if a.best_weekday is not none %}<small>{{ _('You study most on {day}', day=weekday_long(a.best_weekday)) }}</small>{% endif %}
+      </div>
+    </div>
   {% endif %}
   {% if sessions %}
     <h3 class="sub">{{ _('Recent sessions') }}</h3>

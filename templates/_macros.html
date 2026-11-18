@@ -6,6 +6,12 @@
      logged_in  người dùng đã đăng nhập chưa (macro không tự thấy biến của trang gọi nó)
      login_url  link tới trang đăng nhập (kèm ?next=... để quay lại đây) #}
 
+{# Tiêu đề, tô vàng từ khóa nếu Python đã chia sẵn item.title_parts (nthu_api.highlight) #}
+{% macro title_text(item) -%}
+  {%- if item.title_parts is defined %}{% for part, hit in item.title_parts %}{% if hit %}<mark>{{ part }}</mark>{% else %}{{ part }}{% endif %}{% endfor %}
+  {%- else %}{{ item.title }}{% endif -%}
+{%- endmacro %}
+
 {% macro announcement(item, show_save=true, logged_in=false, login_url="") %}
 <li class="item">
   <div class="meta">
@@ -19,16 +25,16 @@
   </div>
   <h3>
     {% if item.link %}
-      <a href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+      <a href="{{ item.link }}" target="_blank" rel="noopener">{{ title_text(item) }}</a>
     {% else %}
-      {{ item.title }}
+      {{ title_text(item) }}
     {% endif %}
   </h3>
   {% if show_save %}
     {{ save_button(item, item.event_date or item.date, logged_in, login_url) }}
     {# Ngày lấy từ tiêu đề là đoán, nên nói rõ cho người dùng tự kiểm tra #}
     {% if item.date_from_title %}
-      <span class="date-hint">{{ _('Will be saved on {date} (date found in the title)', date=item.event_date) }}</span>
+      <span class="date-hint" title="{{ _('Will be saved on {date} (date found in the title)', date=item.event_date) }}">{{ _('Date from title: {date}', date=item.event_date) }}</span>
     {% endif %}
   {% endif %}
 </li>
@@ -42,9 +48,9 @@
   {% elif not logged_in %}
     <a class="btn small" href="{{ login_url }}">{{ _('Log in to save') }}</a>
   {% elif item.saved %}
-    <button class="btn small" type="button" disabled>{{ _('Saved') }} &#10003;</button>
+    <button class="btn small is-added" type="button" disabled>&#10003; {{ _('Added') }}</button>
   {% else %}
-    <button class="btn small" type="button" data-save
+    <button class="btn small" type="button" data-save data-kind="{{ 'deadline' if item.is_deadline else 'event' }}"
             data-title="{{ item.event_title }}" data-date="{{ save_date }}"
             data-office="{{ item.office }}" data-url="{{ item.link }}">{{ _('Save to Calendar') }}</button>
   {% endif %}
@@ -71,8 +77,8 @@
   {{ date_tile(item.due, urgent) }}
   <div class="row-main">
     <span class="sr-only">{{ _('Deadline') if item.is_deadline else _('Takes place') }}: {{ item.due }}.</span>
-    {% if item.link %}<a class="row-title" href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
-    {% else %}<span class="row-title">{{ item.title }}</span>{% endif %}
+    {% if item.link %}<a class="row-title" href="{{ item.link }}" target="_blank" rel="noopener">{{ title_text(item) }}</a>
+    {% else %}<span class="row-title">{{ title_text(item) }}</span>{% endif %}
     <span class="row-meta">{{ item.office }}</span>
   </div>
   <div class="row-side">

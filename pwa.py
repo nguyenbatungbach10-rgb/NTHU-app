@@ -6,7 +6,7 @@ Trình duyệt cần 3 thứ để cho "Thêm vào màn hình chính / Install a
      hiện trang "Bạn đang offline" khi mất mạng thay vì trang lỗi của trình duyệt
   3. HTTPS (PythonAnywhere đã có)
 """
-CACHE_VERSION = "v1"        # đổi khi sửa danh sách OFFLINE_FILES để trình duyệt tải lại bản mới
+CACHE_VERSION = "v2"        # đổi khi sửa danh sách OFFLINE_FILES để trình duyệt tải lại bản mới
 THEME_COLOR = "#6a35c9"     # màu tím của logo (thanh trạng thái điện thoại)
 BACKGROUND = "#f6f2fc"      # màu nền màn hình chờ khi mở app
 ICONS = [

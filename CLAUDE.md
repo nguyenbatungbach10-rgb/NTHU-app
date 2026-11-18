@@ -58,6 +58,14 @@ Errors: 404/500 -> templates/error.html (JSON for /api/). Home: one-line onboard
    name suggestions <datalist> on GPA/Study.
 UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), home page
    "today" panel (classes today + tasks due, study_logic.due_today).
+Phone layout (<= 720px, see GIAI_THICH_MOBILE.md): bottom tab bar (home_logic.TABS/current_tab; "More" opens the
+   menu as a sheet; no backdrop-filter on the top bar there), tiles hidden, Calendar shows week strip + day agenda
+   (calendar_logic.week_strip/day_agenda, ?day=YYYY-MM-DD) instead of the month grid, FAB to add.
+   Announcements: search bar, category chips, "More filters", nthu_api.highlight -> <mark>, "Added" toast.
+   GPA cards: gpa_logic.goal_status/grades_needed/credits_by_year, target slider. Study analytics:
+   study_logic.analytics (daily bars, conic-gradient donut, % vs previous period, streak).
+   Calendar sync: ics_export.py, table calendar_feeds (secret token), /calendar/feed/<token>.ics (one-way).
+   Notifications bell: home_logic.notifications, /notifications.
 Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in templates, cookie "lang",
    Accept-Language fallback, API errors translated in after_request, JS strings via window.I18N).
 PWA: /manifest.webmanifest (pwa.py, translated), /sw.js (static/sw.js + CACHE_VERSION/OFFLINE_FILES from pwa.py;
@@ -99,6 +107,7 @@ login_guard.py          login lockout rules (pure Python)
 account_logic.py        password rules, session auth tag, remember-me length (pure Python)
 timetable_import.py     parse the timetable copied from 校務資訊系統 (pure Python)
 pwa.py                  web app manifest and offline cache list (pure Python)
+ics_export.py           build the .ics calendar file for Google / Apple Calendar (pure Python)
 i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
@@ -107,7 +116,7 @@ tools/save_announcements.py  saves real announcements to data/announcements_snap
 tools/upload_snapshot.py     uploads a snapshot to PythonAnywhere (files API); run by GitHub Actions
 .github/workflows/update-announcements.yml  daily announcements update
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
-                        study_sessions, classes, login_failures tables, all SQL
+                        study_sessions, classes, login_failures, calendar_feeds tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
@@ -119,11 +128,12 @@ GIAI_THICH_DEADLINE.md  explanation of reading dates from announcement titles
 GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours, today panel
 GIAI_THICH_MAP.md       explanation of the campus map
 GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
+GIAI_THICH_MOBILE.md    explanation of the phone layout / mockup features (tabs, agenda, analytics, sync, bell)
 GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines view, offices, onboarding, lockout)
-templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error, schedule_import, offline,
+templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error, schedule_import, offline, notifications,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only), sw.js, icons/
-tests/                  pytest (510 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (539 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
@@ -143,5 +153,5 @@ Before deploying, set the SECRET_KEY and PRODUCTION=1 environment variables (WSG
 
 ## Conventions
 - Keep functions short, with a one-line docstring (Vietnamese or English).
-- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~57% of non-blank lines (2026-11-19, without tests).
+- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~56% of non-blank lines (2026-11-19, without tests).
 - Add a test for every new behaviour, especially security-related ones.

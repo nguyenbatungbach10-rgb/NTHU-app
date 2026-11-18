@@ -27,8 +27,9 @@ def test_announcements_filter_by_category(app):
 
 def test_announcements_category_dropdown_has_counts(app):
     html = app.test_client().get("/announcements").get_data(as_text=True)
-    assert "Scholarship (1)" in html
-    assert "Dorm (1)" in html
+    chips = html.split('class="cat-chips"')[1].split("</nav>")[0]
+    assert "Scholarship <small>1</small>" in chips and "Dorm <small>1</small>" in chips
+    assert 'cat=Scholarship' in chips and 'aria-current="page">All<' in chips
 
 
 def test_announcements_bad_page_number_does_not_crash(app):

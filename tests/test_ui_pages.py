@@ -64,18 +64,40 @@ def test_month_page_has_quick_jump_panel(browser):
 
 # ---------- menu ----------
 
+def _menu(html):
+    """Chỉ phần menu thả xuống (id="site-menu")."""
+    return html.split('id="site-menu"')[1].split("</nav>")[0]
+
+
+def _tabbar(html):
+    """Chỉ phần thanh tab dưới đáy (điện thoại)."""
+    return html.split('class="tabbar"')[1].split("</nav>")[0]
+
+
 def test_menu_lists_every_page_and_marks_current(browser):
     html = _get(browser, "/study")
     assert 'id="menu-button"' in html and 'aria-expanded="false"' in html
     for path in ["/", "/calendar", "/schedule", "/announcements", "/gpa", "/study"]:
-        assert f'href="{path}"' in html
-    assert html.count('aria-current="page"') == 1
+        assert f'href="{path}"' in _menu(html)
+    assert _menu(html).count('aria-current="page"') == 1
     assert "theme-coral" in html
 
 
 def test_menu_current_page_for_year_view_is_calendar(browser):
     html = _get(browser, "/calendar/year")
-    assert html.count('aria-current="page"') == 1 and "theme-violet" in html
+    assert _menu(html).count('aria-current="page"') == 1 and "theme-violet" in html
+
+
+def test_tabbar_marks_the_right_tab(browser):
+    import home_logic
+    assert home_logic.current_tab("gpa_page") == "study_page"
+    assert home_logic.current_tab("calendar_year_page") == "calendar_page"
+    assert home_logic.current_tab("map_page") == "more" and home_logic.current_tab(None) == "more"
+    tabs = _tabbar(_get(browser, "/gpa"))
+    assert tabs.count('aria-current="page"') == 1 and 'href="/study" aria-current="page"' in tabs
+    more = _tabbar(_get(browser, "/schedule"))
+    assert 'aria-current="page"' not in more and "data-current" in more
+    assert "data-menu-toggle" in more
 
 
 def test_menu_shows_log_out_when_logged_in_and_log_in_when_not(browser, make_browser):

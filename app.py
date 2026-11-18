@@ -16,6 +16,7 @@ import sqlite3
 import time
 from datetime import date, datetime, timedelta
 from functools import lru_cache, wraps
+from urllib.parse import quote
 
 from flask import (
     Flask,
@@ -32,9 +33,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import account_logic
+from deadline_logic import DEADLINE_WORDS
 import db
 import home_logic
 import i18n
+import ics_export
 import login_guard
 import map_logic
 import pwa
@@ -43,6 +46,11 @@ from calendar_logic import (
     MAX_YEAR,
     MIN_YEAR,
     TAIWAN_TZ,
+    agenda_summary,
+    day_agenda,
+    parse_day,
+    week_start,
+    week_strip,
     WEEKDAYS,
     build_month,
     mark_saved,
@@ -57,6 +65,9 @@ from calendar_logic import (
     year_bounds,
 )
 from gpa_logic import (
+    credits_by_year,
+    goal_status as gpa_goal_status,
+    grades_needed,
     DEFAULT_CREDITS_REQUIRED,
     DEFAULT_TARGET_GPA,
     GRADE_POINTS,
@@ -78,6 +89,7 @@ from schedule_logic import (
     weekly_minutes,
 )
 from study_logic import (
+    analytics as study_analytics,
     build_task_tree,
     due_today,
     minutes_by_subject,
@@ -88,6 +100,7 @@ from study_logic import (
     week_bounds,
 )
 from nthu_api import (
+    highlight,
     is_stale,
     category_counts,
     GROUP_PREFIX,
@@ -172,12 +185,31 @@ def load_user_and_check_csrf():
             return fail("Invalid or missing CSRF token", 400)
 
 
+def current_notifications():
+    """Thông báo cho người đang đăng nhập (tính một lần mỗi request, dùng cho chuông và trang /notifications)."""
+    if g.user is None:
+        return []
+    if "notifications" not in g:
+        today = today_tw()
+        now = datetime.now(TAIWAN_TZ)
+        day_after = (today + timedelta(days=2)).isoformat()
+        uid = g.user["id"]
+        g.notifications = home_logic.notifications(
+            today, now.hour * 60 + now.minute,
+            db.list_tasks_due(uid, "0000-01-01", day_after),
+            db.list_events(uid, today.isoformat(), day_after),
+            classes_on(db.list_classes(uid), today.weekday()))
+    return g.notifications
+
+
 @app.context_processor
 def inject_user():
     """Đưa current_user, ngôn ngữ và giao diện vào mọi template."""
     lang = getattr(g, "lang", i18n.DEFAULT_LANG)
     return {"current_user": g.user, "ui_lang": lang, "theme": getattr(g, "theme", i18n.DEFAULT_THEME),
-            "js_i18n": i18n.js_strings(lang)}
+            "js_i18n": i18n.js_strings(lang), "tabs": home_logic.TABS,
+            "current_tab": home_logic.current_tab(request.endpoint),
+            "notification_count": len(current_notifications()) if g.get("user") else 0}
 
 
 # ======================= đa ngôn ngữ =======================
@@ -358,6 +390,10 @@ def announcements():
     # Đánh dấu thông báo nào người dùng đã lưu vào Calendar (mỗi người một kết quả riêng)
     saved = db.saved_keys(g.user["id"]) if g.user else set()
     page_items = mark_saved(page_items, saved, today_tw())
+    # Tô vàng từ khóa trong tiêu đề (mark_saved đã trả về bản sao nên sửa được)
+    for item in page_items:
+        item["title_parts"] = highlight(item["title"], q)
+        item.setdefault("is_deadline", bool(DEADLINE_WORDS.search(item["title"])))   # cho chữ của toast "Deadline added"
 
     return render_template(
         "announcements.html",
@@ -472,8 +508,9 @@ def hide_onboarding():
 @app.route("/account")
 @login_required
 def account_page():
-    """Trang Account: thông tin, đổi mật khẩu, xóa tài khoản."""
-    return render_template("account.html")
+    """Trang Account: thông tin, đồng bộ lịch, đổi mật khẩu, xóa tài khoản."""
+    feed = db.get_feed(g.user["id"])
+    return render_template("account.html", feed=feed, links=feed_links(feed["token"]) if feed else None)
 
 
 def current_password_ok():
@@ -515,6 +552,54 @@ def delete_account():
     return redirect(url_for("home"))
 
 
+# ======================= Đồng bộ lịch (.ics) sang Google / Apple Calendar =======================
+
+def feed_links(token):
+    """Các link của file lịch: https (dán vào Google), webcal (bấm trên iPhone/Mac), link mở Google Calendar."""
+    url = url_for("calendar_feed", token=token, _external=True)
+    webcal = "webcal://" + url.split("://", 1)[1]
+    return {"url": url, "webcal": webcal,
+            "google": "https://calendar.google.com/calendar/r?cid=" + quote(webcal, safe="")}
+
+
+@app.route("/account/calendar-sync", methods=["POST"])
+@login_required
+def calendar_sync():
+    """Bật / lưu lựa chọn (action=save), đổi link mới (action=reset) hoặc tắt (action=off)."""
+    action = request.form.get("action")
+    current = db.get_feed(g.user["id"])
+    if action == "off":
+        db.delete_feed(g.user["id"])
+        flash("Calendar sync is off. The old link no longer works.")
+    else:
+        token = secrets.token_urlsafe(24) if action == "reset" or not current else current["token"]
+        db.save_feed(g.user["id"], token, request.form.get("classes") == "1",
+                     request.form.get("events") == "1", request.form.get("tasks") == "1")
+        flash("You have a new calendar link. Add it again in your calendar app." if action == "reset" and current
+              else "Calendar sync settings saved.")
+    return redirect(url_for("account_page") + "#calendar-sync")
+
+
+@app.route("/calendar/feed/<token>.ics")
+def calendar_feed(token):
+    """File lịch cho Google / Apple Calendar. Không cần đăng nhập: link bí mật chính là chìa khóa."""
+    feed = db.get_feed_by_token(token)
+    if feed is None:
+        return error_page(404)
+    uid = feed["user_id"]
+    body = ics_export.build_calendar(
+        _("NTHU Campus Assistant"), today_tw(), datetime.now(TAIWAN_TZ) - timedelta(hours=8),
+        classes=db.list_classes(uid) if feed["classes"] else (),
+        events=db.list_events(uid) if feed["events"] else (),
+        tasks=db.list_open_tasks_with_due(uid) if feed["tasks"] else (),
+        task_label=_("Due: {title}", title="{title}"),
+    )
+    response = app.response_class(body, mimetype="text/calendar")
+    response.headers["Content-Disposition"] = 'inline; filename="nthu-calendar.ics"'
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
+
+
 @app.route("/logout", methods=["POST"])
 def logout():
     """Đăng xuất (dùng POST để trang lạ không tự đăng xuất bạn được)."""
@@ -528,12 +613,28 @@ def logout():
 @app.route("/calendar")
 @login_required
 def calendar_page():
-    """Lịch tháng của người dùng. ?month=YYYY-MM để chọn tháng."""
+    """Lịch tháng của người dùng. ?month=YYYY-MM để chọn tháng, ?day=YYYY-MM-DD để chọn ngày.
+
+    Máy tính: lưới tháng. Điện thoại: dải 7 ngày + mọi thứ của ngày đã chọn (lớp, sự kiện, hạn chót).
+    """
     today = today_tw()
-    year, month = parse_month(request.args.get("month")) or (today.year, today.month)
+    day = parse_day(request.args.get("day"))
+    if day:
+        year, month = day.year, day.month
+    else:
+        year, month = parse_month(request.args.get("month")) or (today.year, today.month)
+        day = today if (year, month) == (today.year, today.month) else date(year, month, 1)
     start, end = month_bounds(year, month)
     events = db.list_events(g.user["id"], start, end)
     tasks = db.list_tasks_due(g.user["id"], start, end)
+
+    # Tuần chứa ngày đã chọn (có thể tràn sang tháng trước/sau nên lấy riêng)
+    first = week_start(day)
+    week_from, week_to = first.isoformat(), (first + timedelta(days=7)).isoformat()
+    week_events = db.list_events(g.user["id"], week_from, week_to)
+    week_tasks = db.list_tasks_due(g.user["id"], week_from, week_to)
+    classes = db.list_classes(g.user["id"])
+    agenda = day_agenda(day, classes, week_events, week_tasks)
 
     prev_year, prev_month = shift_month(year, month, -1)
     next_year, next_month = shift_month(year, month, 1)
@@ -554,6 +655,13 @@ def calendar_page():
         next_year_month=f"{year + 1:04d}-{month:02d}",
         month_names=[date(year, m, 1).strftime("%b") for m in range(1, 13)],
         today_month=f"{today.year:04d}-{today.month:02d}",
+        day=day,
+        is_today=day == today,
+        week=week_strip(day, today, classes, week_events, week_tasks),
+        agenda=agenda,
+        summary=agenda_summary(agenda),
+        prev_week=(day - timedelta(days=7)).isoformat(),
+        next_week=(day + timedelta(days=7)).isoformat(),
     )
 
 
@@ -645,6 +753,9 @@ def gpa_page():
     return render_template(
         "gpa.html",
         overview=overview(courses, goals["target_gpa"], goals["credits_required"]),
+        goal=gpa_goal_status(courses, goals["target_gpa"]),
+        needed=grades_needed(courses, goals["target_gpa"]),
+        by_year=credits_by_year(courses, goals["credits_required"], current_semester(today_tw())),
         semesters=list(reversed(semester_summary(courses))),  # học kỳ mới nhất trước
         goals=goals,
         letters=LETTERS,
@@ -814,8 +925,10 @@ def study_page():
     week_by_subject = {row["subject_id"]: row["minutes"]
                        for row in minutes_by_subject(sessions, names, week_start, week_end)}
     recent = [dict(s, subject_name=names.get(s["subject_id"], "")) for s in sessions[:15]]
+    period = request.args.get("period", "week")
     return render_template(
         "study.html",
+        stats_chart=study_analytics(sessions, names, today, period),
         stats=study_overview(tasks, sessions, today),
         task_tree=build_task_tree(tasks, today.isoformat(), names),
         subjects=[dict(s, week_minutes=week_by_subject.get(s["id"], 0)) for s in subjects],
@@ -1066,6 +1179,13 @@ def service_worker():
     response = app.response_class(header + body, mimetype="text/javascript")
     response.headers["Cache-Control"] = "no-cache"   # trình duyệt luôn kiểm tra bản mới
     return response
+
+
+@app.route("/notifications")
+@login_required
+def notifications_page():
+    """Danh sách việc cần chú ý: trễ hạn, sắp tới hạn, lớp sắp bắt đầu, sự kiện hôm nay / ngày mai."""
+    return render_template("notifications.html", items=current_notifications())
 
 
 @app.route("/offline")

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import announcement, dated_row %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ _('Announcements') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
@@ -28,42 +29,58 @@
   </div>
 {% endif %}
 
-{# Form dùng method GET: khi bấm Filter, trình duyệt gọi /announcements?office=...&cat=...&lang=...&q=... #}
-<form class="filters" method="get" action="{{ url_for('announcements') }}">
-  {% if view != 'all' %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
-  <select name="cat" aria-label="{{ _('Category') }}">
-    <option value="">{{ _('All categories') }}</option>
-    {% for name, n in categories %}
-      <option value="{{ name }}" {{ 'selected' if name == cat }}>{{ _(name) }} ({{ n }})</option>
-    {% endfor %}
-  </select>
-  <select name="office" aria-label="{{ _('Office') }}">
-    <option value="">{{ _('All offices') }}</option>
-    {# Hơn 100 đơn vị: gom theo đơn vị lớn (Python tính trong group_offices) #}
-    {% for g in office_groups %}
-      {% if g.offices | length == 1 and g.offices[0] == g.name %}
-        <option value="{{ g.name }}" {{ 'selected' if g.name == office }}>{{ g.name }}</option>
-      {% else %}
-        <optgroup label="{{ g.name }}">
-          <option value="{{ group_prefix ~ g.name }}" {{ 'selected' if group_prefix ~ g.name == office }}>{{ _('All of {name}', name=g.name) }}</option>
-          {% for name in g.offices %}
-            <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
-          {% endfor %}
-        </optgroup>
-      {% endif %}
-    {% endfor %}
-  </select>
-  <select name="lang" aria-label="{{ _('Language') }}">
-    {% for value, label in [('', _('All languages')), ('en', 'English'), ('zh-tw', '中文')] %}
-      <option value="{{ value }}" {{ 'selected' if value == lang }}>{{ label }}</option>
-    {% endfor %}
-  </select>
-  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Search keyword...') }}">
-  <button class="btn" type="submit">{{ _('Filter') }}</button>
-  {% if q or office or lang or cat %}
-    <a class="clear" href="{{ url_for('announcements', view=None if view == 'all' else view) }}">{{ _('Clear') }}</a>
-  {% endif %}
+{# Ô tìm kiếm ở trên cùng (giống mockup). Form GET: Enter -> /announcements?q=...; giữ các bộ lọc khác. #}
+{% set keep = {'view': None if view == 'all' else view, 'cat': cat or None, 'office': office or None, 'lang': lang or None} %}
+<form class="search-bar" method="get" action="{{ url_for('announcements') }}" role="search">
+  {{ icon('search') }}
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Search announcements...') }}" aria-label="{{ _('Search keyword...') }}">
+  {% for name, value in keep.items() if value %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <button class="btn small" type="submit">{{ _('Search') }}</button>
 </form>
+
+{# Chip loại: cuộn ngang trên điện thoại; bấm là lọc ngay (là link, không cần JavaScript) #}
+<nav class="cat-chips" aria-label="{{ _('Category') }}">
+  <a href="{{ url_for('announcements', view=keep.view, q=q or None, office=keep.office, lang=keep.lang) }}"
+     {% if not cat %}aria-current="page"{% endif %}>{{ _('All') }}</a>
+  {% for name, n in categories %}
+    <a href="{{ url_for('announcements', view=keep.view, q=q or None, office=keep.office, lang=keep.lang, cat=name) }}"
+       {% if name == cat %}aria-current="page"{% endif %}>{{ _(name) }} <small>{{ n }}</small></a>
+  {% endfor %}
+</nav>
+
+{# Bộ lọc ít dùng (đơn vị, ngôn ngữ) gấp lại cho gọn #}
+<details class="more-filters" {% if office or lang %}open{% endif %}>
+  <summary>{{ _('More filters') }}{% if office or lang %} &middot; {{ _('on') }}{% endif %}</summary>
+  <form class="filters" method="get" action="{{ url_for('announcements') }}">
+    {% for name in ['view', 'cat'] if keep[name] %}<input type="hidden" name="{{ name }}" value="{{ keep[name] }}">{% endfor %}
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <select name="office" aria-label="{{ _('Office') }}">
+      <option value="">{{ _('All offices') }}</option>
+      {# Hơn 100 đơn vị: gom theo đơn vị lớn (Python tính trong group_offices) #}
+      {% for g in office_groups %}
+        {% if g.offices | length == 1 and g.offices[0] == g.name %}
+          <option value="{{ g.name }}" {{ 'selected' if g.name == office }}>{{ g.name }}</option>
+        {% else %}
+          <optgroup label="{{ g.name }}">
+            <option value="{{ group_prefix ~ g.name }}" {{ 'selected' if group_prefix ~ g.name == office }}>{{ _('All of {name}', name=g.name) }}</option>
+            {% for name in g.offices %}
+              <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endif %}
+      {% endfor %}
+    </select>
+    <select name="lang" aria-label="{{ _('Language') }}">
+      {% for value, label in [('', _('All languages')), ('en', 'English'), ('zh-tw', '中文')] %}
+        <option value="{{ value }}" {{ 'selected' if value == lang }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn small" type="submit">{{ _('Filter') }}</button>
+  </form>
+</details>
+{% if q or office or lang or cat %}
+  <p class="clear-line"><a class="clear" href="{{ url_for('announcements', view=keep.view) }}">{{ _('Clear all filters') }}</a></p>
+{% endif %}
 
 {% if view == 'deadlines' %}
   <p class="count">{{ _('{count} deadlines in the next {days} days, soonest first. Dates are read from the titles, so check the original.', count=count, days=deadline_days) }}</p>
