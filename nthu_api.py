@@ -330,11 +330,16 @@ def _all_title_dates(items, today):
     return rows
 
 
-def upcoming_dates(items, today, days=60):
+def upcoming_dates(items, today, days=60, kind=None):
     """Thông báo có ngày ghi trong tiêu đề nằm trong [hôm nay, hôm nay + days], ngày gần nhất trước.
 
     Mỗi kết quả là BẢN SAO có thêm: due (YYYY-MM-DD), days_left (còn mấy ngày),
-    is_deadline (tiêu đề có chữ 截止 / 期限 / deadline...: đây là hạn chót chứ không chỉ là ngày diễn ra).
+    is_deadline (tiêu đề có chữ 截止 / 期限 / 日止 / deadline...: đây là HẠN CHÓT, ví dụ hạn nộp đơn).
+    Không có các chữ đó thì ngày trong tiêu đề chỉ là ngày diễn ra (buổi nói chuyện, hội thảo...).
+
+    kind: None = cả hai, "deadline" = chỉ hạn chót, "event" = chỉ sự kiện.
     """
     end = (today + timedelta(days=days)).isoformat()
-    return [row for row in _all_title_dates(items, today) if row["due"] <= end]
+    wanted = {"deadline": True, "event": False}.get(kind)
+    return [row for row in _all_title_dates(items, today)
+            if row["due"] <= end and (wanted is None or row["is_deadline"] == wanted)]

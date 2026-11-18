@@ -112,6 +112,8 @@ app.teardown_appcontext(db.close_db)
 LATEST_ON_HOME = 5
 DEADLINE_DAYS = 60          # trang Announcements > Upcoming deadlines: 60 ngày tới
 HOME_DEADLINE_DAYS = 30     # trang chủ: hạn trong 30 ngày tới
+# ?view=... của trang Announcements -> loại ngày cần lấy (xem nthu_api.upcoming_dates)
+ANNOUNCEMENT_VIEWS = {"all": None, "deadlines": "deadline", "events": "event"}
 UPCOMING_ON_HOME = 5
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -241,7 +243,8 @@ def home():
     items, notice = fetch_announcements()
     # Dữ liệu mẫu thì không hiện trên trang chủ cho khỏi nhầm; bản lưu là thông báo thật nên vẫn hiện
     latest = [] if is_sample(notice) else items[:LATEST_ON_HOME]
-    soon = [] if is_sample(notice) else upcoming_dates(items, today_tw(), HOME_DEADLINE_DAYS)[:LATEST_ON_HOME]
+    # Trang chủ chỉ hiện HẠN CHÓT thật (hạn nộp đơn...), không hiện buổi nói chuyện/hội thảo
+    soon = [] if is_sample(notice) else upcoming_dates(items, today_tw(), HOME_DEADLINE_DAYS, "deadline")[:LATEST_ON_HOME]
 
     upcoming, today_classes, due = [], [], []
     today = today_tw()
@@ -253,7 +256,8 @@ def home():
         due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
     steps = None
     if g.user:
-        steps = home_logic.onboarding(db.user_counts(g.user["id"]))
+        hidden = request.cookies.get("onboarding") == "hidden"   # người dùng đã bấm "Hide"
+        steps = home_logic.onboarding(db.user_counts(g.user["id"]), hidden)
         targets = {"schedule": url_for("schedule_page"), "gpa": url_for("gpa_page"),
                    "deadlines": url_for("announcements", view="deadlines"), "study": url_for("study_page")}
         for step in steps["steps"]:
@@ -272,12 +276,13 @@ def announcements():
     office = request.args.get("office", "").strip()
     lang = request.args.get("lang", "").strip()
     cat = request.args.get("cat", "").strip()
-    view = "deadlines" if request.args.get("view") == "deadlines" else "all"
+    view = request.args.get("view")
+    view = view if view in ANNOUNCEMENT_VIEWS else "all"   # giá trị lạ -> xem tất cả
     page = request.args.get("page", 1, type=int)  # không phải số -> dùng 1
 
     items, notice = fetch_announcements()
-    # "Upcoming deadlines": chỉ các thông báo có ngày trong tiêu đề, 60 ngày tới, gần nhất trước
-    source = upcoming_dates(items, today_tw(), DEADLINE_DAYS) if view == "deadlines" else items
+    # "Deadlines" / "Events": chỉ các thông báo có ngày trong tiêu đề, 60 ngày tới, gần nhất trước
+    source = items if view == "all" else upcoming_dates(items, today_tw(), DEADLINE_DAYS, ANNOUNCEMENT_VIEWS[view])
     filtered = filter_announcements(source, office=office, q=q, lang=lang, category=cat)
     page_items, page, total_pages = paginate(filtered, page)
 
@@ -384,6 +389,16 @@ def login():
         session["user_id"] = user["id"]
         return redirect(safe_next(next_url))
     return render_template("login.html", email="", next_url=next_url)
+
+
+@app.route("/onboarding/hide", methods=["POST"])
+@login_required
+def hide_onboarding():
+    """Ẩn khung "Get started" trên trang chủ (lưu trong cookie 1 năm, cho trình duyệt này)."""
+    response = redirect(url_for("home"))
+    response.set_cookie("onboarding", "hidden", max_age=365 * 24 * 3600, samesite="Lax", httponly=True,
+                        secure=app.config["SESSION_COOKIE_SECURE"])
+    return response
 
 
 @app.route("/logout", methods=["POST"])

@@ -23,8 +23,9 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    category (Scholarship / Dorm / Careers / Admissions / Registration / Exchange / Campus notices /
    Events / Other, guessed from the title by classify(); English keywords match whole words),
    latest 5 on the home page, "Save to Calendar" button. Dates are cleaned (clean_date) and
-   duplicates (office, title, date) dropped in normalize(). "Upcoming deadlines" view
-   (?view=deadlines, upcoming_dates(): next 60 days, home page 30 days).
+   duplicates (office, title, date) dropped in normalize(). Tabs ?view=deadlines / ?view=events
+   (upcoming_dates(kind="deadline"|"event"): next 60 days; is_deadline = DEADLINE_WORDS in title, otherwise the
+   title date is just when a talk/event happens). Home page shows only deadlines (30 days).
    The button saves on the date found in the title (deadline_logic.suggest_date: Republic of
    China years like 115年10月08日, 2026-11-20, 11月20日, "Nov 20"...), else on the posted date,
    and the page says "date found in the title" so users can check the guess.
@@ -39,7 +40,7 @@ Accounts: sign-up / log-in / log-out with sessions. Login lockout: 5 failures pe
    in 15 minutes -> 429 (login_guard.py decides, db.login_failures stores). PRODUCTION=1 env var ->
    Secure cookies + ProxyFix (real client IP on PythonAnywhere).
 Dates: "today" is always calendar_logic.today_tw() (Asia/Taipei, UTC+8); never date.today().
-Errors: 404/500 -> templates/error.html (JSON for /api/). Home: onboarding checklist (home_logic.py),
+Errors: 404/500 -> templates/error.html (JSON for /api/). Home: one-line onboarding strip (home_logic.py, Hide -> cookie "onboarding"),
    name suggestions <datalist> on GPA/Study.
 UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), home page
    "today" panel (classes today + tasks due, study_logic.due_today).
@@ -101,7 +102,7 @@ GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines v
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, error,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (462 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (465 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

@@ -48,15 +48,22 @@ Mọi chỗ trong `app.py` trước đây dùng `date.today()` giờ dùng `toda
 - Từ khóa tiếng Anh khớp **nguyên từ** (`_keyword_pattern` dùng `\b`) để "award" không khớp nhầm trong
   "awarded..." của một từ khác, hay "fee" không khớp "feedback". Từ khóa tiếng Trung khớp theo chuỗi con.
 
-## 6. Xem theo hạn chót (`nthu_api.upcoming_dates`)
+## 6. Hạn chót và sự kiện (`nthu_api.upcoming_dates`)
 
-Trang Announcements có thêm tab **Upcoming deadlines**: các thông báo có ngày (đọc từ tiêu đề)
-trong 60 ngày tới, sắp xếp gần nhất trước. Trang chủ có khối tương tự cho 30 ngày tới.
+Trang Announcements có 3 tab: **All announcements**, **Deadlines** (hạn chót) và **Talks & events**
+(buổi nói chuyện, hội thảo). Cả hai tab sau chỉ lấy thông báo có ngày ghi trong tiêu đề, trong 60 ngày tới,
+gần nhất trước. Trang chủ chỉ hiện **hạn chót** trong 30 ngày tới.
 
-- `upcoming_dates(items, today, days)` trả về **bản sao** của từng thông báo, thêm `due` (ngày),
-  `days_left` (còn bao nhiêu ngày) và `is_deadline` (tiêu đề có chữ như 截止, deadline...).
+- `upcoming_dates(items, today, days, kind)` trả về **bản sao** của từng thông báo, thêm `due` (ngày),
+  `days_left` (còn bao nhiêu ngày) và `is_deadline`.
+- `is_deadline` = tiêu đề có chữ báo hạn chót: 截止, 期限, 日止 ("至11月20日止" = đến hết 20/11), deadline, due...
+  Không có các chữ đó thì ngày trong tiêu đề chỉ là **ngày diễn ra** (ví dụ "(專題演講)115.11.19..." là ngày
+  có buổi nói chuyện, không phải hạn nộp gì cả). Bản đầu tiên gộp chung hai loại dưới tên "deadlines" nên gây nhầm.
+- `kind="deadline"` chỉ lấy hạn chót, `kind="event"` chỉ lấy sự kiện, `None` lấy cả hai.
+  `app.py` nối tham số `?view=` với loại này qua `ANNOUNCEMENT_VIEWS`.
+- Thẻ hiện "Deadline: 2026-11-20 · tomorrow" (tô đỏ nếu còn ≤ 7 ngày) hoặc "Takes place: 2026-11-19 · today".
+  Ngày bên phải ghi "Posted ..." để không nhầm ngày đăng với ngày hạn.
 - Ngày đọc từ tiêu đề được nhớ lại trong `_dates_memo` để không phải đọc lại 4.500 tiêu đề mỗi lần mở trang.
-- Thẻ thông báo hiện "Deadline: 2026-11-30 · in 12 days", tô đậm nếu còn ≤ 7 ngày.
 
 ## 7. Gom đơn vị (`nthu_api.office_group`, `group_offices`)
 
@@ -66,9 +73,10 @@ Giá trị lọc của lựa chọn đó là `"group:教務處"` (`GROUP_PREFIX`
 
 ## 8. Hướng dẫn người mới (`home_logic.onboarding`)
 
-Người mới đăng ký thấy trang chủ trống. Giờ có khung **Get started** với 4 bước (thêm lớp học,
-đặt mục tiêu tín chỉ, lưu một hạn chót, thêm việc học). `db.user_counts(user_id)` đếm số dòng của
-người dùng trong từng bảng; `onboarding(counts)` đánh dấu bước nào đã xong. Xong cả 4 thì khung tự ẩn.
+Người mới đăng ký thấy trang chủ trống, nên có một **dòng nhỏ** "Get started" với 4 nút (thêm lớp, đặt mục tiêu GPA,
+lưu một hạn chót, thêm việc học). Nó chỉ là gợi ý, nên làm gọn một dòng chứ không chiếm cả khối.
+`db.user_counts(user_id)` đếm số dòng của người dùng trong từng bảng; `onboarding(counts, hidden)` đánh dấu bước nào đã xong.
+Dòng này tự ẩn khi xong cả 4 bước, hoặc khi bấm **Hide** (POST `/onboarding/hide` lưu cookie `onboarding=hidden` 1 năm).
 
 ## 9. Gợi ý tên môn (`home_logic.name_suggestions`)
 

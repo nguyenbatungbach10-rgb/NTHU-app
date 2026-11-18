@@ -29,6 +29,12 @@ def test_upcoming_dates_sorted_and_windowed():
     assert [r["is_deadline"] for r in rows] == [False, True, True]                  # "講座" chỉ là ngày diễn ra
 
 
+def test_upcoming_dates_split_deadlines_and_events():
+    items = [item("獎學金申請至12月5日止"), item("講座 11月25日"), item("(轉知)自即日起至115年11月20日止受理推薦")]
+    assert [r["due"] for r in nthu_api.upcoming_dates(items, TODAY, kind="deadline")] == ["2026-11-20", "2026-12-05"]
+    assert [r["due"] for r in nthu_api.upcoming_dates(items, TODAY, kind="event")] == ["2026-11-25"]
+
+
 def test_upcoming_dates_today_counts_and_copies():
     items = [item("截止 11月19日")]
     rows = nthu_api.upcoming_dates(items, TODAY)
@@ -44,8 +50,9 @@ def test_upcoming_dates_memo_is_per_day():
 def fake_items():
     today = today_tw()
     soon = today.replace(day=1)
+    talk = f"專題演講 {today.year}/{today.month}/{today.day}"          # chỉ là ngày diễn ra, hôm nay
     return [item(f"獎學金申請至{(today.month % 12) + 1}月1日止", "", "學務處"), item("宿舍公告", today.isoformat(), "學務處"),
-            item("Old news", "2020-01-01")], soon
+            item("Old news", "2020-01-01"), item(talk, today.isoformat(), "理學院")], soon
 
 
 def test_deadlines_view_page(make_browser, monkeypatch):
@@ -53,8 +60,17 @@ def test_deadlines_view_page(make_browser, monkeypatch):
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, None))
     html = make_browser().client.get("/announcements?view=deadlines").get_data(as_text=True)
     assert "獎學金申請至" in html and "宿舍公告" not in html and "Old news" not in html
-    assert "Dates are read from the titles" in html and 'name="view" value="deadlines"' in html
+    assert "專題演講" not in html                                                # buổi nói chuyện không phải hạn chót
+    assert "deadlines in the next" in html and 'name="view" value="deadlines"' in html
     assert "in " in html and "days" in html
+
+
+def test_events_view_page(make_browser, monkeypatch):
+    items, _ = fake_items()
+    monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, None))
+    html = make_browser().client.get("/announcements?view=events").get_data(as_text=True)
+    assert "專題演講" in html and "獎學金申請至" not in html
+    assert "Takes place" in html and "today" in html and 'name="view" value="events"' in html
 
 
 def test_deadlines_view_keeps_filters_and_default_view(make_browser, monkeypatch):
@@ -71,6 +87,7 @@ def test_home_shows_upcoming_deadlines_but_not_from_sample_data(make_browser, mo
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, None))
     html = make_browser().client.get("/").get_data(as_text=True)
     assert "Upcoming deadlines" in html and "view=deadlines" in html
+    assert "專題演講" not in html.split("Upcoming deadlines")[1].split("Latest announcements")[0]
     monkeypatch.setattr(app_module, "fetch_announcements",
                         lambda: (nthu_api.SAMPLE_ANNOUNCEMENTS, {"kind": "sample", "reason": "x"}))
     assert "Upcoming deadlines" not in make_browser().client.get("/").get_data(as_text=True)
@@ -87,4 +104,4 @@ def test_deadlines_in_chinese(make_browser, monkeypatch):
     items, _ = fake_items()
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, None))
     html = make_browser().client.get("/announcements?view=deadlines", headers={"Accept-Language": "zh-TW"}).get_data(as_text=True)
-    assert "即將截止" in html and "還有" in html
+    assert "截止期限" in html and "還有" in html

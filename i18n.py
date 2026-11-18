@@ -41,8 +41,8 @@ ZH = {
     "Add": "新增", "Name": "名稱", "None": "無", "none": "沒有", "Search": "搜尋", "Go": "前往",
     "Overdue": "已逾期", "Map": "地圖",
     "Get started": "開始使用", "{done} of {total} done": "已完成 {done}/{total}", "done": "已完成",
-    "Add your weekly classes": "加入每週課程", "Set your graduation credits and target GPA": "設定畢業學分和目標 GPA",
-    "Save an upcoming deadline to your calendar": "把一個即將到來的截止日存到行事曆", "Add a study task": "新增一個讀書待辦",
+    "Add your classes": "加入課程", "Set a GPA goal": "設定 GPA 目標",
+    "Save a deadline": "儲存一個截止日", "Add a study task": "新增一個讀書待辦",
     "Classes, deadlines, grades, campus map and NTHU announcements in one place.": "課表、截止日、成績、校園地圖和清大公告，一次看清楚。",
     "Page not found": "找不到這個頁面",
     "This page does not exist or has moved. Check the address or start from the home page.": "這個頁面不存在或已經移動。請檢查網址，或從首頁開始。",
@@ -100,8 +100,12 @@ ZH = {
     "Newer": "較新", "Older": "較舊", "Page {page} of {pages}": "第 {page} 頁，共 {pages} 頁",
     "View": "檢視", "All announcements": "所有公告", "Upcoming deadlines": "即將截止",
     "All of {name}": "{name}（全部）",
-    "{count} announcements with a date in the next {days} days, soonest first. Dates are read from the titles, so check the original.":
-        "未來 {days} 天內有日期的公告共 {count} 則，最近的在前。日期取自標題，請以原始公告為準。",
+    "{count} deadlines in the next {days} days, soonest first. Dates are read from the titles, so check the original.":
+        "未來 {days} 天內共有 {count} 個截止期限，最近的在前。日期取自標題，請以原始公告為準。",
+    "{count} talks and events in the next {days} days, soonest first. Dates are read from the titles, so check the original.":
+        "未來 {days} 天內共有 {count} 場演講與活動，最近的在前。日期取自標題，請以原始公告為準。",
+    "Deadlines": "截止期限", "Talks & events": "演講與活動", "Takes place": "舉辦日期",
+    "Posted on": "公告日期", "Posted {date}": "公告於 {date}", "Hide": "隱藏",
     "Previous": "上一頁", "Later": "下一頁", "Deadline": "截止", "today": "今天", "tomorrow": "明天",
     "in {n} days": "還有 {n} 天",
     "No announcements match your filter.": "沒有符合篩選條件的公告。",

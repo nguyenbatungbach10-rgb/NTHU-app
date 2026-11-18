@@ -8,10 +8,10 @@
 
 {# Hai cách xem; các bộ lọc được giữ khi đổi qua lại #}
 <nav class="view-tabs" aria-label="{{ _('View') }}">
-  <a href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None) }}"
-     {% if view != 'deadlines' %}aria-current="page"{% endif %}>{{ _('All announcements') }}</a>
-  <a href="{{ url_for('announcements', view='deadlines', q=q or None, office=office or None, lang=lang or None, cat=cat or None) }}"
-     {% if view == 'deadlines' %}aria-current="page"{% endif %}>{{ _('Upcoming deadlines') }}</a>
+  {% for code, label in [('all', 'All announcements'), ('deadlines', 'Deadlines'), ('events', 'Talks & events')] %}
+    <a href="{{ url_for('announcements', view=None if code == 'all' else code, q=q or None, office=office or None, lang=lang or None, cat=cat or None) }}"
+       {% if view == code %}aria-current="page"{% endif %}>{{ _(label) }}</a>
+  {% endfor %}
 </nav>
 
 {# notice do nthu_api.fetch_announcements() trả về: None = dữ liệu trực tiếp #}
@@ -27,7 +27,7 @@
 
 {# Form dùng method GET: khi bấm Filter, trình duyệt gọi /announcements?office=...&cat=...&lang=...&q=... #}
 <form class="filters" method="get" action="{{ url_for('announcements') }}">
-  {% if view == 'deadlines' %}<input type="hidden" name="view" value="deadlines">{% endif %}
+  {% if view != 'all' %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
   <select name="cat" aria-label="{{ _('Category') }}">
     <option value="">{{ _('All categories') }}</option>
     {% for name, n in categories %}
@@ -58,12 +58,14 @@
   <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Search keyword...') }}">
   <button class="btn" type="submit">{{ _('Filter') }}</button>
   {% if q or office or lang or cat %}
-    <a class="clear" href="{{ url_for('announcements', view=view if view == 'deadlines' else None) }}">{{ _('Clear') }}</a>
+    <a class="clear" href="{{ url_for('announcements', view=None if view == 'all' else view) }}">{{ _('Clear') }}</a>
   {% endif %}
 </form>
 
 {% if view == 'deadlines' %}
-  <p class="count">{{ _('{count} announcements with a date in the next {days} days, soonest first. Dates are read from the titles, so check the original.', count=count, days=deadline_days) }}</p>
+  <p class="count">{{ _('{count} deadlines in the next {days} days, soonest first. Dates are read from the titles, so check the original.', count=count, days=deadline_days) }}</p>
+{% elif view == 'events' %}
+  <p class="count">{{ _('{count} talks and events in the next {days} days, soonest first. Dates are read from the titles, so check the original.', count=count, days=deadline_days) }}</p>
 {% else %}
   <p class="count">{{ _('{count} of {total} announcements, newest first', count=count, total=total) }}</p>
 {% endif %}
@@ -82,14 +84,14 @@
     <nav class="pager">
       {% if page > 1 %}
         <a class="btn small"
-           href="{{ url_for('announcements', view=view if view == 'deadlines' else None, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; {{ _('Previous') if view == 'deadlines' else _('Newer') }}</a>
+           href="{{ url_for('announcements', view=None if view == 'all' else view, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; {{ _('Newer') if view == 'all' else _('Previous') }}</a>
       {% else %}
         <span></span>
       {% endif %}
       <span class="page-info">{{ _('Page {page} of {pages}', page=page, pages=total_pages) }}</span>
       {% if page < total_pages %}
         <a class="btn small"
-           href="{{ url_for('announcements', view=view if view == 'deadlines' else None, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">{{ _('Later') if view == 'deadlines' else _('Older') }} &rarr;</a>
+           href="{{ url_for('announcements', view=None if view == 'all' else view, q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">{{ _('Older') if view == 'all' else _('Later') }} &rarr;</a>
       {% else %}
         <span></span>
       {% endif %}

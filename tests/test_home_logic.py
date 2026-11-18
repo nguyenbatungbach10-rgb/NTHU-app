@@ -10,6 +10,7 @@ def test_onboarding_counts_steps_and_hides_when_done():
     assert (result["done"], result["total"], result["show"]) == (2, 4, True)
     assert home_logic.onboarding({"classes": 1, "goals": 1, "events": 1, "tasks": 1})["show"] is False
     assert home_logic.onboarding({})["done"] == 0
+    assert home_logic.onboarding({}, hidden=True)["show"] is False             # người dùng bấm Hide
 
 
 def test_name_suggestions():
@@ -34,6 +35,15 @@ def test_onboarding_counts_only_my_data(browser, make_browser):
     other = make_browser()
     other.signup("b@example.com")
     assert "0 of 4 done" in other.client.get("/").get_data(as_text=True)
+
+
+def test_hide_onboarding(browser, make_browser):
+    response = browser.client.post("/onboarding/hide", data={"csrf_token": browser.token()})
+    assert response.status_code == 302 and "onboarding=hidden" in response.headers["Set-Cookie"]
+    assert "Get started" not in browser.client.get("/").get_data(as_text=True)
+    assert browser.client.post("/onboarding/hide").status_code == 400          # thiếu CSRF token
+    assert make_browser().client.post("/onboarding/hide",
+                                      data={"csrf_token": make_browser().token()}).status_code in (302, 400)
 
 
 def test_visitor_has_no_onboarding(make_browser):

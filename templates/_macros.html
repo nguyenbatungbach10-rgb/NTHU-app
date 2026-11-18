@@ -15,7 +15,7 @@
         <span class="chip">{{ _(item.category) }}</span>
       {% endif %}
     </span>
-    <span class="date">{{ item.date }}</span>
+    {% if item.date %}<span class="date" title="{{ _('Posted on') }}">{{ _('Posted {date}', date=item.date) if item.due is defined else item.date }}</span>{% endif %}
   </div>
   <h3>
     {% if item.link %}
@@ -26,8 +26,8 @@
   </h3>
   {% if item.due is defined %}
     {# Từ trang "Upcoming deadlines": ngày đọc từ tiêu đề và số ngày còn lại (Python tính) #}
-    <p class="due {{ 'soon' if item.days_left <= 7 }}">
-      <strong>{{ _('Deadline') if item.is_deadline else _('Date') }}: {{ item.due }}</strong>
+    <p class="due {{ 'soon' if item.is_deadline and item.days_left <= 7 }}">
+      <strong>{{ _('Deadline') if item.is_deadline else _('Takes place') }}: {{ item.due }}</strong>
       &middot; {% if item.days_left == 0 %}{{ _('today') }}{% elif item.days_left == 1 %}{{ _('tomorrow') }}{% else %}{{ _('in {n} days', n=item.days_left) }}{% endif %}
     </p>
   {% endif %}

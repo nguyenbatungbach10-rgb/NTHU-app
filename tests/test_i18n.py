@@ -9,6 +9,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, ROOT)
 
+import home_logic
 import i18n  # noqa: E402
 import map_logic  # noqa: E402
 from calendar_logic import validate_event  # noqa: E402
@@ -40,10 +41,9 @@ DYNAMIC_KEYS = {
     "Please enter a valid email address.", "Password must be 8 to 128 characters.",
     "Passwords do not match.", "That email is already registered.", "No subject",
     "Main campus", "Nanda campus",
-    "Add your weekly classes", "Set your graduation credits and target GPA",
-    "Save an upcoming deadline to your calendar", "Add a study task",
+    "All announcements", "Deadlines", "Talks & events",
     "{label}: {name}, {meters} m (about {minutes} min walk)", "Walking directions in Google Maps", "{n} floors",
-} | {label for _, label, _ in map_logic.CATEGORIES}
+} | {label for _, label, _ in map_logic.CATEGORIES} | {label for _, label, _ in home_logic.STEPS}
 
 
 def placeholders(text):

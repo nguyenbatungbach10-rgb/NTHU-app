@@ -46,16 +46,18 @@
   </div>
 </section>
 {% if onboarding and onboarding.show %}
-<section class="onboard" aria-labelledby="onboard-title">
-  <h2 id="onboard-title">{{ _('Get started') }} <small>{{ _('{done} of {total} done', done=onboarding.done, total=onboarding.total) }}</small></h2>
-  <ol>
+{# Gợi ý cho tài khoản mới: một dòng nhỏ, tự ẩn khi xong 4 bước hoặc khi bấm Hide #}
+<section class="onboard" aria-label="{{ _('Get started') }}">
+  <span class="onboard-title">{{ _('Get started') }} <small>{{ _('{done} of {total} done', done=onboarding.done, total=onboarding.total) }}</small></span>
+  <ul>
     {% for step in onboarding.steps %}
-      <li class="{{ 'done' if step.done }}">
-        {% if step.done %}<span class="check" aria-hidden="true">&#10003;</span>{% endif %}
-        <a href="{{ step.url }}">{{ _(step.label) }}</a>{% if step.done %} <span class="sr-only">({{ _('done') }})</span>{% endif %}
-      </li>
+      <li class="{{ 'done' if step.done }}"><a href="{{ step.url }}">{% if step.done %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ _(step.label) }}</a>{% if step.done %}<span class="sr-only"> ({{ _('done') }})</span>{% endif %}</li>
     {% endfor %}
-  </ol>
+  </ul>
+  <form method="post" action="{{ url_for('hide_onboarding') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="onboard-hide" type="submit">{{ _('Hide') }}</button>
+  </form>
 </section>
 {% endif %}
 {% else %}

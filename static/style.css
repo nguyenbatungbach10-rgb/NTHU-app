@@ -598,9 +598,16 @@ a.pill { display: block; box-sizing: border-box; text-decoration: none; }
 .due.soon { color: var(--danger); }
 
 /* ---------- hướng dẫn người mới (trang chủ) ---------- */
-.onboard { margin: 0 0 24px; padding: 16px 20px; border-radius: var(--radius); background: var(--card); border: 1px dashed var(--accent); }
-.onboard h2 { margin: 0 0 8px; font-size: 1.1rem; color: var(--accent-dark); }
-.onboard h2 small { margin-left: 8px; font-family: var(--body); font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-.onboard ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
-.onboard li.done a { color: var(--muted); text-decoration: line-through; }
-.onboard .check { color: var(--accent); font-weight: 800; margin-right: 4px; }
+/* Gợi ý cho tài khoản mới: một dòng nhỏ, không chiếm chỗ của nội dung chính */
+.onboard { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 24px;
+           padding: 10px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); font-size: 0.92rem; }
+.onboard-title { font-weight: 700; color: var(--accent-dark); }
+.onboard-title small { margin-left: 4px; font-weight: 600; color: var(--muted); }
+.onboard ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; flex: 1; }
+.onboard li a { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft);
+                color: var(--accent-dark); text-decoration: none; font-weight: 600; }
+.onboard li a:hover { text-decoration: underline; }
+.onboard li.done a { background: transparent; color: var(--muted); text-decoration: line-through; }
+.onboard form { margin: 0; }
+.onboard-hide { background: none; border: 0; padding: 4px 6px; color: var(--muted); font: inherit; cursor: pointer; text-decoration: underline; }
+.onboard-hide:hover { color: var(--ink); }
