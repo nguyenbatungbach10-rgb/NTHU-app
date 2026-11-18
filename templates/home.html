@@ -6,54 +6,53 @@
 {% if current_user %}
 <section class="today">
   <div class="today-date">
-    <span class="today-weekday">{{ today.strftime('%A') }}</span>
+    <span class="today-weekday">{{ weekday_long(today.weekday()) }}</span>
     <span class="today-day">{{ today.day }}</span>
-    <span class="today-month">{{ today.strftime('%B %Y') }}</span>
+    <span class="today-month">{{ month_label(today.year, today.month) }}</span>
   </div>
 
   <div class="today-panels">
     <article class="today-panel t-teal">
-      <h2>Classes today</h2>
+      <h2>{{ _('Classes today') }}</h2>
       {% if today_classes %}
         <ul class="today-list">
           {% for stop in today_classes %}{% set c = stop['item'] %}
             <li><span class="time">{{ c.start }}&ndash;{{ c.end }}</span>
                 <span class="what">{{ c.name }}{% if c.room %} <small>{{ c.room }}</small>{% endif %}
                   {%- if stop.place %} <a class="where" href="{{ url_for('map_page', place=stop.place.id) }}"
-                     title="Show {{ stop.place.name }} on the map">Map</a>{% endif %}</span></li>
+                     title="{{ _('Show {name} on the map', name=stop.place.name) }}">{{ _('Map') }}</a>{% endif %}</span></li>
           {% endfor %}
         </ul>
       {% else %}
-        <p class="today-empty">No classes today.</p>
+        <p class="today-empty">{{ _('No classes today.') }}</p>
       {% endif %}
-      <a class="today-link" href="{{ url_for('schedule_page') }}">Open timetable</a>
+      <a class="today-link" href="{{ url_for('schedule_page') }}">{{ _('Open timetable') }}</a>
     </article>
 
     <article class="today-panel t-coral">
-      <h2>Due today or overdue</h2>
+      <h2>{{ _('Due today or overdue') }}</h2>
       {% if due_tasks %}
         <ul class="today-list">
           {% for t in due_tasks %}
-            <li><span class="time {{ 'late' if t.overdue }}">{{ 'Overdue' if t.overdue else 'Today' }}</span>
+            <li><span class="time {{ 'late' if t.overdue }}">{{ _('Overdue') if t.overdue else _('Today') }}</span>
                 <span class="what">{{ t.title }}</span></li>
           {% endfor %}
         </ul>
       {% else %}
-        <p class="today-empty">Nothing due. Nice.</p>
+        <p class="today-empty">{{ _('Nothing due. Nice.') }}</p>
       {% endif %}
-      <a class="today-link" href="{{ url_for('study_page') }}">Open study planner</a>
+      <a class="today-link" href="{{ url_for('study_page') }}">{{ _('Open study planner') }}</a>
     </article>
   </div>
 </section>
 {% else %}
 <section class="hero">
   <div class="hero-text">
-    <h1>Your classes, deadlines and grades in one place.</h1>
-    <p>Plan the week, keep track of what is due, follow your GPA and never miss an NTHU
-       announcement.</p>
+    <h1>{{ _('Your classes, deadlines and grades in one place.') }}</h1>
+    <p>{{ _('Plan the week, keep track of what is due, follow your GPA and never miss an NTHU announcement.') }}</p>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('signup') }}">Create a free account</a>
-      <a class="btn ghost" href="{{ url_for('login') }}">Log in</a>
+      <a class="btn" href="{{ url_for('signup') }}">{{ _('Create a free account') }}</a>
+      <a class="btn ghost" href="{{ url_for('login') }}">{{ _('Log in') }}</a>
     </div>
   </div>
   <div class="hero-art" aria-hidden="true">
@@ -65,64 +64,64 @@
 <section class="tiles">
   <a class="tile t-violet" href="{{ url_for('calendar_page') }}">
     <span class="tile-icon">{{ icon('calendar') }}</span>
-    <h3>Calendar</h3>
-    <p>Events and deadlines by month, or see the whole year at a glance.</p>
+    <h3>{{ _('Calendar') }}</h3>
+    <p>{{ _('Events and deadlines by month, or see the whole year at a glance.') }}</p>
   </a>
   <a class="tile t-teal" href="{{ url_for('schedule_page') }}">
     <span class="tile-icon">{{ icon('schedule') }}</span>
-    <h3>Schedule</h3>
-    <p>Your weekly class timetable, with a warning when two classes overlap.</p>
+    <h3>{{ _('Schedule') }}</h3>
+    <p>{{ _('Your weekly class timetable, with a warning when two classes overlap.') }}</p>
   </a>
   <a class="tile t-green" href="{{ url_for('gpa_page') }}">
     <span class="tile-icon">{{ icon('gpa') }}</span>
-    <h3>Credits &amp; GPA</h3>
-    <p>See your GPA and credits, and the grades you need to hit your goal.</p>
+    <h3>{{ _('Credits & GPA') }}</h3>
+    <p>{{ _('See your GPA and credits, and the grades you need to hit your goal.') }}</p>
   </a>
   <a class="tile t-coral" href="{{ url_for('study_page') }}">
     <span class="tile-icon">{{ icon('study') }}</span>
-    <h3>Study</h3>
-    <p>Break work into tasks, keep your materials and log study time.</p>
+    <h3>{{ _('Study') }}</h3>
+    <p>{{ _('Break work into tasks, keep your materials and log study time.') }}</p>
   </a>
   <a class="tile t-amber" href="{{ url_for('map_page') }}">
     <span class="tile-icon">{{ icon('map') }}</span>
-    <h3>Campus map</h3>
-    <p>Find buildings, dorms and food in 2D or 3D, and where today's classes are.</p>
+    <h3>{{ _('Campus map') }}</h3>
+    <p>{{ _("Find buildings, dorms and food in 2D or 3D, and where today's classes are.") }}</p>
   </a>
   <a class="tile t-blue" href="{{ url_for('announcements') }}">
     <span class="tile-icon">{{ icon('news') }}</span>
-    <h3>Announcements</h3>
-    <p>Scholarships, registration and dorm notices, filtered for you.</p>
+    <h3>{{ _('Announcements') }}</h3>
+    <p>{{ _('Scholarships, registration and dorm notices, filtered for you.') }}</p>
   </a>
 </section>
 
 {% if current_user %}
 <section class="latest">
   <div class="latest-head">
-    <h2>Coming up</h2>
-    <a href="{{ url_for('calendar_page') }}">Open calendar</a>
+    <h2>{{ _('Coming up') }}</h2>
+    <a href="{{ url_for('calendar_page') }}">{{ _('Open calendar') }}</a>
   </div>
   {% if upcoming %}
     <ul class="list">
       {% for ev in upcoming %}
         <li class="item">
           <div class="meta">
-            <span class="office">{{ ev.date }}{% if ev.time %} at {{ ev.time }}{% endif %}</span>
+            <span class="office">{{ ev.date }}{% if ev.time %} {{ ev.time }}{% endif %}</span>
           </div>
           <h3><a href="{{ url_for('calendar_page', month=ev.date[:7]) }}">{{ ev.title }}</a></h3>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p class="empty">No upcoming events. <a href="{{ url_for('calendar_page') }}">Add one</a>
-       or save a deadline from the announcements.</p>
+    <p class="empty">{{ _('No upcoming events. Add one in the calendar or save a deadline from the announcements.') }}
+       <a href="{{ url_for('calendar_page') }}">{{ _('Open calendar') }}</a></p>
   {% endif %}
 </section>
 {% endif %}
 
 <section class="latest">
   <div class="latest-head">
-    <h2>Latest announcements</h2>
-    <a href="{{ url_for('announcements') }}">View all</a>
+    <h2>{{ _('Latest announcements') }}</h2>
+    <a href="{{ url_for('announcements') }}">{{ _('View all') }}</a>
   </div>
   {% if latest %}
     <ul class="list">
@@ -131,7 +130,7 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p class="empty">Announcements are unavailable right now. Please try again later.</p>
+    <p class="empty">{{ _('Announcements are unavailable right now. Please try again later.') }}</p>
   {% endif %}
 </section>
 {% endblock %}

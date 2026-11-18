@@ -1,41 +1,41 @@
 {% extends "base.html" %}
 
-{% block title %}Calendar - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Calendar') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block content %}
 <div class="cal-bar">
   {# Bấm vào tên tháng để nhảy thẳng tới tháng/năm khác (thẻ <details> có sẵn của HTML, không cần JavaScript) #}
   <details class="jump">
-    <summary aria-label="Pick another month"><h1>{{ label }}</h1><span class="chev" aria-hidden="true"></span></summary>
+    <summary aria-label="{{ _('Pick another month') }}"><h1>{{ month_label(year, month) }}</h1><span class="chev" aria-hidden="true"></span></summary>
     <div class="jump-panel">
       <div class="jump-year">
-        <a href="{{ url_for('calendar_page', month=prev_year_month) }}" aria-label="Previous year">&lsaquo;</a>
+        <a href="{{ url_for('calendar_page', month=prev_year_month) }}" aria-label="{{ _('Previous year') }}">&lsaquo;</a>
         <strong>{{ year }}</strong>
-        <a href="{{ url_for('calendar_page', month=next_year_month) }}" aria-label="Next year">&rsaquo;</a>
+        <a href="{{ url_for('calendar_page', month=next_year_month) }}" aria-label="{{ _('Next year') }}">&rsaquo;</a>
       </div>
       <div class="jump-months">
-        {% for name in month_names %}
+        {% for name in month_names %}{% set name = month_short(loop.index) %}
           <a class="{{ 'on' if loop.index == month }}"
              href="{{ url_for('calendar_page', month='%04d-%02d'|format(year, loop.index)) }}">{{ name }}</a>
         {% endfor %}
       </div>
-      <a class="jump-all" href="{{ url_for('calendar_year_page', year=year) }}">See all of {{ year }}</a>
+      <a class="jump-all" href="{{ url_for('calendar_year_page', year=year) }}">{{ _('See all of {year}', year=year) }}</a>
     </div>
   </details>
   <div class="cal-nav">
-    <a class="btn small ghost" href="{{ url_for('calendar_page', month=prev_month) }}" aria-label="Previous month">&larr; Prev</a>
+    <a class="btn small ghost" href="{{ url_for('calendar_page', month=prev_month) }}" aria-label="{{ _('Previous month') }}">&larr; {{ _('Prev') }}</a>
     {% if not in_this_month %}
-      <a class="btn small ghost" href="{{ url_for('calendar_page') }}">Today</a>
+      <a class="btn small ghost" href="{{ url_for('calendar_page') }}">{{ _('Today') }}</a>
     {% endif %}
-    <a class="btn small ghost" href="{{ url_for('calendar_page', month=next_month) }}" aria-label="Next month">Next &rarr;</a>
-    <a class="btn small ghost" href="{{ url_for('calendar_year_page', year=year) }}">Year view</a>
-    <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ Add event</button>
+    <a class="btn small ghost" href="{{ url_for('calendar_page', month=next_month) }}" aria-label="{{ _('Next month') }}">{{ _('Next') }} &rarr;</a>
+    <a class="btn small ghost" href="{{ url_for('calendar_year_page', year=year) }}">{{ _('Year view') }}</a>
+    <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ {{ _('Add event') }}</button>
   </div>
 </div>
 
 <div class="cal-wrap">
   <div class="cal">
-    {% for name in weekdays %}
+    {% for name in weekday_short() %}
       <div class="cal-head">{{ name }}</div>
     {% endfor %}
 
@@ -46,7 +46,7 @@
             <div class="cal-top">
               <span class="cal-day">{{ cell.day }}</span>
               <button class="cal-add" type="button" data-add data-date="{{ cell.iso }}"
-                      aria-label="Add event on {{ cell.iso }}">+</button>
+                      aria-label="{{ _('Add event on {date}', date=cell.iso) }}">+</button>
             </div>
             {% for ev in cell.events %}
               {# data-* mang dữ liệu sự kiện cho JavaScript; Jinja tự escape nên an toàn #}
@@ -60,7 +60,7 @@
             {# Hạn nộp của việc cần làm (từ trang Study): chỉ để xem, bấm vào để mở trang Study #}
             {% for t in cell.tasks %}
               <a class="pill task-pill {{ 'overdue' if t.overdue }}" href="{{ url_for('study_page') }}"
-                 title="Task due: {{ t.title }}">&#9744; {{ t.title }}</a>
+                 title="{{ _('Task due: {title}', title=t.title) }}">&#9744; {{ t.title }}</a>
             {% endfor %}
           </div>
         {% else %}
@@ -74,32 +74,32 @@
 {# Hộp thoại thêm / sửa sự kiện (thẻ <dialog> có sẵn của HTML) #}
 <dialog id="event-dialog">
   <form class="dialog-form">
-    <h2>Add event</h2>
+    <h2>{{ _('Add event') }}</h2>
     <div class="field">
-      <label for="ev-title">Title</label>
+      <label for="ev-title">{{ _('Title') }}</label>
       <input id="ev-title" name="title" maxlength="200" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="ev-date">Date</label>
+        <label for="ev-date">{{ _('Date') }}</label>
         <input id="ev-date" name="date" type="date" required>
       </div>
       <div class="field">
-        <label for="ev-time">Time <small>(optional)</small></label>
+        <label for="ev-time">{{ _('Time') }} <small>{{ _('(optional)') }}</small></label>
         <input id="ev-time" name="time" type="time">
       </div>
     </div>
     <div class="field">
-      <label for="ev-description">Description <small>(optional)</small></label>
+      <label for="ev-description">{{ _('Description') }} <small>{{ _('(optional)') }}</small></label>
       <textarea id="ev-description" name="description" rows="3" maxlength="1000"></textarea>
     </div>
-    <p class="source-line" hidden><a id="ev-source" target="_blank" rel="noopener">Open original announcement</a></p>
+    <p class="source-line" hidden><a id="ev-source" target="_blank" rel="noopener">{{ _('Open original announcement') }}</a></p>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>

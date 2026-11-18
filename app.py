@@ -8,6 +8,7 @@ File này chỉ chứa route và phần bảo mật. Logic nằm ở các file k
     db.py             câu lệnh SQL (users, events)
 """
 import hmac
+import json
 import os
 import re
 import secrets
@@ -29,6 +30,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+import i18n
 import map_logic
 from calendar_logic import (
     MAX_YEAR,
@@ -67,7 +69,6 @@ from schedule_logic import (
 from study_logic import (
     build_task_tree,
     due_today,
-    format_minutes,
     minutes_by_subject,
     overview as study_overview,
     validate_session,
@@ -116,7 +117,9 @@ def fail(message, status):
 
 @app.before_request
 def load_user_and_check_csrf():
-    """Chạy trước MỖI request: nạp người dùng đang đăng nhập và kiểm tra CSRF."""
+    """Chạy trước MỖI request: chọn ngôn ngữ/giao diện, nạp người dùng đang đăng nhập và kiểm tra CSRF."""
+    g.lang = i18n.detect_lang(request.cookies.get("lang"), request.headers.get("Accept-Language", ""))
+    g.theme = i18n.normalize_theme(request.cookies.get("theme"))
     g.user = None
     user_id = session.get("user_id")
     if user_id is not None:
@@ -133,8 +136,60 @@ def load_user_and_check_csrf():
 
 @app.context_processor
 def inject_user():
-    """Đưa current_user vào mọi template."""
-    return {"current_user": g.user}
+    """Đưa current_user, ngôn ngữ và giao diện vào mọi template."""
+    lang = getattr(g, "lang", i18n.DEFAULT_LANG)
+    return {"current_user": g.user, "ui_lang": lang, "theme": getattr(g, "theme", i18n.DEFAULT_THEME),
+            "js_i18n": i18n.js_strings(lang)}
+
+
+# ======================= đa ngôn ngữ =======================
+
+def current_lang():
+    """Ngôn ngữ của request hiện tại (tiếng Anh nếu chưa chọn được, ví dụ khi lỗi rất sớm)."""
+    return getattr(g, "lang", i18n.DEFAULT_LANG)
+
+
+def _(text, **values):
+    """Dịch một câu theo ngôn ngữ hiện tại. Dùng trong template: {{ _('Calendar') }}."""
+    return i18n.translate(text, current_lang(), **values)
+
+
+# Hàm dùng chung trong mọi template (kể cả macro được import, vì đây là "globals")
+app.jinja_env.globals.update(
+    _=_,
+    languages=i18n.LANGUAGES,
+    month_label=lambda year, month: i18n.month_label(year, month, current_lang()),
+    month_long=lambda month: i18n.month_long(month, current_lang()),
+    month_short=lambda month: i18n.month_short(month, current_lang()),
+    weekday_long=lambda index: i18n.weekday_long(index, current_lang()),
+    weekday_short=lambda: i18n.weekday_short(current_lang()),
+    weekday_initials=lambda: i18n.weekday_initials(current_lang()),
+    fmt_minutes=lambda minutes: i18n.format_minutes(minutes, current_lang()),
+)
+
+
+@app.after_request
+def translate_api_errors(response):
+    """Lỗi JSON {"error": "..."} được dịch sang ngôn ngữ người dùng đã chọn (Python dịch, JS chỉ hiện)."""
+    if response.status_code >= 400 and response.is_json and current_lang() != i18n.DEFAULT_LANG:
+        data = response.get_json(silent=True)
+        if isinstance(data, dict) and isinstance(data.get("error"), str):
+            data["error"] = i18n.translate_error(data["error"], current_lang())
+            response.set_data(json.dumps(data, ensure_ascii=False))
+    return response
+
+
+@app.route("/settings", methods=["POST"])
+def settings():
+    """Lưu ngôn ngữ và/hoặc giao diện vào cookie (1 năm), rồi quay lại trang cũ. Cần CSRF như mọi POST."""
+    response = redirect(safe_next(request.form.get("next", "")))
+    one_year = 365 * 24 * 3600
+    lang, theme = request.form.get("lang"), request.form.get("theme")
+    if lang in i18n.LANGUAGES:
+        response.set_cookie("lang", lang, max_age=one_year, samesite="Lax", httponly=True)
+    if theme in i18n.THEMES:
+        response.set_cookie("theme", theme, max_age=one_year, samesite="Lax", httponly=True)
+    return response
 
 
 def login_required(view):
@@ -482,7 +537,7 @@ def schedule_page():
         today_classes=[c for c in days[today.weekday()]["classes"]],
         has_classes=bool(classes),
         conflict_count=len({c["id"] for d in days for c in d["classes"] if c["conflict"]}),
-        total_hours=format_minutes(weekly_minutes(classes)),
+        total_minutes=weekly_minutes(classes),
         class_count=len(classes),
         weekday_names=[d["name"] for d in days],
         periods=PERIODS,
@@ -545,7 +600,6 @@ def study_page():
         week_rows=minutes_by_subject(sessions, names, week_start, week_end),
         sessions=recent,
         today=today.isoformat(),
-        fmt_minutes=format_minutes,
     )
 
 
@@ -721,7 +775,15 @@ def api_place(place_id):
     place = find_place(place_id)
     if place is None:
         return jsonify({"error": "place not found"}), 404
-    return jsonify(map_logic.details(place, campus_places()[0]))
+    d = map_logic.details(place, campus_places()[0])
+    d["category_label"] = _(d["category_label"])
+    for near in d["nearby"].values():
+        near["label"] = _(near["label"])
+        near["text"] = _("{label}: {name}, {meters} m (about {minutes} min walk)", label=near["label"],
+                         name=near["name"], meters=near["meters"], minutes=near["minutes"])
+    d["floors_text"] = _("{n} floors", n=d["levels"]) if d["levels"] else ""
+    d["directions_label"] = _("Walking directions in Google Maps")
+    return jsonify(d)
 
 
 if __name__ == "__main__":

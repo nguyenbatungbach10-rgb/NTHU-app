@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Weekly schedule - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Weekly schedule') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {# Một thẻ môn học. Dữ liệu cho JavaScript nằm trong data-*; Jinja tự escape nên an toàn. #}
 {% macro class_card(c) %}
@@ -10,52 +10,51 @@
     <span class="class-time">{{ c.start }}&ndash;{{ c.end }}</span>
     <span class="class-name">{{ c.name }}</span>
     {% if c.room %}<span class="class-room">{{ c.room }}</span>{% endif %}
-    {% if c.conflict %}<span class="class-warn">&#9888; overlaps another class</span>{% endif %}
+    {% if c.conflict %}<span class="class-warn">&#9888; {{ _('overlaps another class') }}</span>{% endif %}
   </button>
 {% endmacro %}
 
 {% block content %}
 <div class="cal-bar">
-  <h1>Weekly schedule</h1>
+  <h1>{{ _('Weekly schedule') }}</h1>
   <div class="cal-nav">
-    <button class="btn small" type="button" data-add-class data-weekday="{{ today_weekday }}">+ Add class</button>
+    <button class="btn small" type="button" data-add-class data-weekday="{{ today_weekday }}">+ {{ _('Add class') }}</button>
   </div>
 </div>
 
 <section class="stats">
   <article class="stat">
-    <span class="stat-label">Classes</span>
+    <span class="stat-label">{{ _('Classes') }}</span>
     <span class="stat-value">{{ class_count }}</span>
-    <span class="stat-note">each week</span>
+    <span class="stat-note">{{ _('each week') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">In class</span>
-    <span class="stat-value">{{ total_hours }}</span>
-    <span class="stat-note">per week</span>
+    <span class="stat-label">{{ _('In class') }}</span>
+    <span class="stat-value">{{ fmt_minutes(total_minutes) }}</span>
+    <span class="stat-note">{{ _('per week') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Time clashes</span>
+    <span class="stat-label">{{ _('Time clashes') }}</span>
     <span class="stat-value {{ 'bad' if conflict_count }}">{{ conflict_count }}</span>
-    <span class="stat-note">{{ 'classes overlap, see red cards' if conflict_count else 'none' }}</span>
+    <span class="stat-note">{{ _('classes overlap, see red cards') if conflict_count else _('none') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Today</span>
+    <span class="stat-label">{{ _('Today') }}</span>
     <span class="stat-value">{{ today_classes | length }}</span>
-    <span class="stat-note">class{{ '' if today_classes | length == 1 else 'es' }} on {{ weekday_names[today_weekday] }}</span>
+    <span class="stat-note">{{ _('class on {day}', day=weekday_long(today_weekday)) if today_classes | length == 1 else _('classes on {day}', day=weekday_long(today_weekday)) }}</span>
   </article>
 </section>
 
 {% if not has_classes %}
-  <p class="empty">No classes yet. Press <strong>+ Add class</strong> to add each course once;
-     it will repeat on the same weekday every week.</p>
+  <p class="empty">{{ _('No classes yet. Press "+ Add class" to add each course once; it will repeat on the same weekday every week.') }}</p>
 {% endif %}
 
 <section class="panel">
-  <h2>Today &middot; {{ weekday_names[today_weekday] }}</h2>
+  <h2>{{ _('Today') }} &middot; {{ weekday_long(today_weekday) }}</h2>
   {% if today_classes %}
     <div class="today-list">{% for c in today_classes %}{{ class_card(c) }}{% endfor %}</div>
   {% else %}
-    <p class="empty">No classes today.</p>
+    <p class="empty">{{ _('No classes today.') }}</p>
   {% endif %}
 </section>
 
@@ -65,7 +64,7 @@
   <div class="tt" style="--days: {{ days | length }}; --rows: {{ periods | length }}">
     <div class="tt-corner"></div>
     {% for day in days %}
-      <div class="tt-head {{ 'is-today' if day.weekday == today_weekday }}" title="{{ day.name }}"><span>{{ day.short }}</span></div>
+      <div class="tt-head {{ 'is-today' if day.weekday == today_weekday }}" title="{{ weekday_long(day.weekday) }}"><span>{{ weekday_short()[day.weekday] }}</span></div>
     {% endfor %}
 
     <div class="tt-times">
@@ -80,12 +79,12 @@
           {# ô trống: bấm để thêm môn vào đúng thứ và tiết này (người dùng bàn phím dùng nút "+ Add class") #}
           <button class="tt-cell" type="button" tabindex="-1" data-add-class data-weekday="{{ day.weekday }}"
                   data-start="{{ p.start }}" data-end="{{ p.end }}"
-                  aria-label="Add class on {{ day.name }}, period {{ p.id }}">+</button>
+                  aria-label="{{ _('Add class on {day}, period {period}', day=weekday_long(day.weekday), period=p.id) }}">+</button>
         {% endfor %}
         {% for b in day.blocks %}
           <button class="tt-block {{ 'conflict' if b.conflict }}" type="button" data-class
                   style="--row: {{ b.row }}; --span: {{ b.span }}; --lane: {{ b.lane }}; --lanes: {{ b.lanes }}"
-                  title="{{ b.name }}, {{ b.start }}-{{ b.end }}{{ ' (overlaps another class)' if b.conflict }}"
+                  title="{{ b.name }}, {{ b.start }}-{{ b.end }}{{ ' (' ~ _('overlaps another class') ~ ')' if b.conflict }}"
                   data-id="{{ b.id }}" data-name="{{ b.name }}" data-weekday="{{ b.weekday }}"
                   data-start="{{ b.start }}" data-end="{{ b.end }}" data-room="{{ b.room }}">
             <span class="tt-name">{{ b.name }}</span>
@@ -101,10 +100,10 @@
 
 {% if days | selectattr('outside') | list %}
   <section class="panel tt-outside">
-    <h2>Outside the usual periods</h2>
-    <p class="muted">These classes start or end outside the NTHU periods 1 to d, so they do not fit in the grid.</p>
+    <h2>{{ _('Outside the usual periods') }}</h2>
+    <p class="muted">{{ _('These classes start or end outside the NTHU periods 1 to d, so they do not fit in the grid.') }}</p>
     {% for day in days %}{% if day.outside %}
-      <p class="sub">{{ day.name }}</p>
+      <p class="sub">{{ weekday_long(day.weekday) }}</p>
       <div class="today-list">{% for c in day.outside %}{{ class_card(c) }}{% endfor %}</div>
     {% endif %}{% endfor %}
   </section>
@@ -112,39 +111,39 @@
 
 <dialog id="class-dialog">
   <form class="dialog-form">
-    <h2>Add class</h2>
+    <h2>{{ _('Add class') }}</h2>
     <div class="field">
-      <label for="cl-name">Course name</label>
+      <label for="cl-name">{{ _('Course name') }}</label>
       <input id="cl-name" name="name" maxlength="100" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="cl-weekday">Day</label>
+        <label for="cl-weekday">{{ _('Day') }}</label>
         <select id="cl-weekday" name="weekday">
-          {% for name in weekday_names %}<option value="{{ loop.index0 }}">{{ name }}</option>{% endfor %}
+          {% for name in weekday_names %}<option value="{{ loop.index0 }}">{{ weekday_long(loop.index0) }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
-        <label for="cl-room">Room <small>(optional)</small></label>
+        <label for="cl-room">{{ _('Room') }} <small>{{ _('(optional)') }}</small></label>
         <input id="cl-room" name="room" maxlength="100">
       </div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="cl-start">Start</label>
+        <label for="cl-start">{{ _('Start') }}</label>
         <input id="cl-start" name="start" type="time" required>
       </div>
       <div class="field">
-        <label for="cl-end">End</label>
+        <label for="cl-end">{{ _('End') }}</label>
         <input id="cl-end" name="end" type="time" required>
       </div>
     </div>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>

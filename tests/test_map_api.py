@@ -8,7 +8,7 @@ def test_map_page_public(make_browser):
     html = make_browser().client.get("/map").get_data(as_text=True)
     assert "Campus map" in html and 'data-mode="3d"' in html and "OpenStreetMap contributors" in html
     assert 'data-category="academic"' in html and "Main campus" in html and "Nanda campus" in html
-    assert "Today's classes" not in html
+    assert "Today&#39;s classes" not in html
     assert "theme-amber" in html and 'aria-current="page"' in html
 
 
@@ -26,7 +26,7 @@ def test_map_page_place_param_and_unknown(make_browser):
     client = make_browser().client
     assert 'data-focus="w180522500"' in client.get("/map?place=w180522500").get_data(as_text=True)
     html = client.get("/map?place=nope&q=zzzz").get_data(as_text=True)
-    assert 'data-focus=""' in html and 'No place matches "zzzz"' in html
+    assert 'data-focus=""' in html and 'No place matches &#34;zzzz&#34;' in html
 
 
 def test_map_page_escapes_query(make_browser):
@@ -61,7 +61,7 @@ def test_todays_classes_on_map(browser):
     browser.api("POST", "/api/classes", dict(CLASS, name="Mystery", room="Somewhere 9", weekday=date.today().weekday()))
     browser.api("POST", "/api/classes", dict(CLASS, name="Tomorrow", weekday=(date.today().weekday() + 1) % 7))
     html = browser.client.get("/map").get_data(as_text=True)
-    assert "Today's classes" in html and 'data-place="r3815072"' in html
+    assert "Today&#39;s classes" in html and 'data-place="r3815072"' in html
     assert "Somewhere 9: building not found" in html and "Tomorrow" not in html
 
 

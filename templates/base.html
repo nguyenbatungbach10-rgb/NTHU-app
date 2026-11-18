@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+{# ui_lang ("en" / "zh-TW") và theme ("light" / "dark" / "auto") do Python đọc từ cookie (app.py) #}
+<html lang="{{ ui_lang }}" data-theme="{{ theme }}">
 {% from "_icons.html" import icon %}
-{# Mỗi trang một màu chủ đạo (Calendar tím, Schedule xanh ngọc, GPA xanh lá, Study cam đỏ, Announcements xanh dương) #}
+{# Mỗi trang một màu chủ đạo (Calendar tím, Schedule xanh ngọc, GPA xanh lá, Study cam đỏ, Announcements xanh dương, Map cam) #}
 {% set themes = {'calendar_page': 'violet', 'calendar_year_page': 'violet', 'schedule_page': 'teal',
                  'gpa_page': 'green', 'study_page': 'coral', 'announcements': 'blue',
                  'map_page': 'amber'} %}
@@ -14,12 +15,13 @@
   ('study_page', 'Study', 'study', 'coral'),
   ('map_page', 'Campus map', 'map', 'amber'),
 ] %}
+{% set here = request.full_path.rstrip('?') %}
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {# Token chống CSRF: static/app.js đọc từ đây để gắn vào các request fetch() #}
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>{% block title %}NTHU Campus Assistant{% endblock %}</title>
+  <title>{% block title %}{{ _('NTHU Campus Assistant') }}{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
@@ -30,37 +32,70 @@
   <header class="topbar">
     <a class="brand" href="{{ url_for('home') }}">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-name">NTHU Campus Assistant</span>
+      <span class="brand-name">{{ _('NTHU Campus Assistant') }}</span>
     </a>
 
     <div class="topbar-right">
+      {# Đổi nhanh ngôn ngữ và sáng/tối: form POST tới /settings, Python lưu lựa chọn vào cookie #}
+      <form class="quick" method="post" action="{{ url_for('settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ here }}">
+        <button class="quick-btn" type="submit" name="lang" value="{{ 'en' if ui_lang == 'zh-TW' else 'zh-TW' }}"
+                title="{{ _('Switch language') }}" lang="{{ 'en' if ui_lang == 'zh-TW' else 'zh-TW' }}">
+          {{ 'EN' if ui_lang == 'zh-TW' else '中文' }}
+        </button>
+        <button class="quick-btn" type="submit" name="theme" data-theme-toggle
+                value="{{ 'light' if theme == 'dark' else 'dark' }}" title="{{ _('Light or dark mode') }}"
+                aria-label="{{ _('Light or dark mode') }}">
+          <span class="moon" aria-hidden="true">{{ icon('moon') }}</span><span class="sun" aria-hidden="true">{{ icon('sun') }}</span>
+        </button>
+      </form>
       {% if not current_user %}
-        <a class="top-login" href="{{ url_for('login') }}">Log in</a>
-        <a class="btn small top-signup" href="{{ url_for('signup') }}">Sign up</a>
+        <a class="top-login" href="{{ url_for('login') }}">{{ _('Log in') }}</a>
+        <a class="btn small top-signup" href="{{ url_for('signup') }}">{{ _('Sign up') }}</a>
       {% endif %}
       <div class="menu">
         <button class="menu-button" id="menu-button" type="button" aria-expanded="false"
-                aria-controls="site-menu" aria-label="Open menu">
-          <span class="bars" aria-hidden="true"><span></span><span></span><span></span></span>
-          <span class="menu-label">Menu</span>
+                aria-controls="site-menu" aria-label="{{ _('Open menu') }}"
+                data-label-open="{{ _('Open menu') }}" data-label-close="{{ _('Close menu') }}">
+          <span class="menu-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span class="menu-label">{{ _('Menu') }}</span>
         </button>
-        <nav class="menu-panel" id="site-menu" aria-label="Main" hidden>
+        <nav class="menu-panel" id="site-menu" aria-label="{{ _('Main') }}" hidden>
           {% for endpoint, label, icon_name, color in menu %}
             <a class="menu-link t-{{ color }}" href="{{ url_for(endpoint) }}"
                {% if request.endpoint == endpoint or (endpoint == 'calendar_page' and request.endpoint == 'calendar_year_page') %}aria-current="page"{% endif %}>
-              <span class="menu-icon">{{ icon(icon_name) }}</span>{{ label }}
+              <span class="menu-icon">{{ icon(icon_name) }}</span>{{ _(label) }}
             </a>
           {% endfor %}
+          <form class="menu-settings" method="post" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ here }}">
+            <span class="setting-name">{{ _('Language') }}</span>
+            <span class="seg small" role="group" aria-label="{{ _('Language') }}">
+              {% for code, name in languages.items() %}
+                <button type="submit" class="seg-btn" name="lang" value="{{ code }}" lang="{{ code }}"
+                        aria-pressed="{{ 'true' if code == ui_lang else 'false' }}">{{ name }}</button>
+              {% endfor %}
+            </span>
+            <span class="setting-name">{{ _('Theme') }}</span>
+            <span class="seg small" role="group" aria-label="{{ _('Theme') }}">
+              {% for code, name in [('light', 'Light'), ('dark', 'Dark'), ('auto', 'Auto')] %}
+                <button type="submit" class="seg-btn" name="theme" value="{{ code }}"
+                        aria-pressed="{{ 'true' if code == theme else 'false' }}">{{ _(name) }}</button>
+              {% endfor %}
+            </span>
+          </form>
           <div class="menu-user">
             {% if current_user %}
               <span class="menu-email" title="{{ current_user.email }}">{{ current_user.email }}</span>
               <form class="inline" method="post" action="{{ url_for('logout') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn small ghost" type="submit">Log out</button>
+                <button class="btn small ghost" type="submit">{{ _('Log out') }}</button>
               </form>
             {% else %}
-              <a class="btn small ghost" href="{{ url_for('login') }}">Log in</a>
-              <a class="btn small" href="{{ url_for('signup') }}">Sign up</a>
+              <a class="btn small ghost" href="{{ url_for('login') }}">{{ _('Log in') }}</a>
+              <a class="btn small" href="{{ url_for('signup') }}">{{ _('Sign up') }}</a>
             {% endif %}
           </div>
         </nav>
@@ -69,17 +104,19 @@
   </header>
 
   <main class="container">
-    {# Thông báo một lần (flash) như "Welcome!" hay lỗi đăng nhập #}
+    {# Thông báo một lần (flash). Lưu bằng tiếng Anh, dịch lúc hiển thị. #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
-        <div class="flash {{ category if category == 'error' }}">{{ message }}</div>
+        <div class="flash {{ category if category == 'error' }}">{{ _(message) }}</div>
       {% endfor %}
     {% endwith %}
 
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer">I2P Final Project &middot; NTHU student project, not an official NTHU site</footer>
+  <footer class="footer">{{ _('I2P Final Project') }} &middot; {{ _('NTHU student project, not an official NTHU site') }}</footer>
+  {# Chữ dùng trong JavaScript (thông báo, nút); tiếng Anh thì để trống và JS dùng chữ gốc #}
+  <script>window.I18N = {{ js_i18n | tojson }};</script>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>

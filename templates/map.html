@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Campus map - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Campus map') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block head %}
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
@@ -16,15 +16,15 @@
 
 {% block content %}
 <div class="cal-bar">
-  <h1>Campus map</h1>
+  <h1>{{ _('Campus map') }}</h1>
   <div class="cal-nav map-controls">
-    <div class="seg" role="group" aria-label="Map view">
+    <div class="seg" role="group" aria-label="{{ _('Map view') }}">
       <button type="button" class="seg-btn" data-mode="2d" aria-pressed="true">2D</button>
       <button type="button" class="seg-btn" data-mode="3d" aria-pressed="false">3D</button>
     </div>
     {% for c in campuses %}
       <button class="btn small ghost" type="button" data-campus data-lat="{{ c.lat }}" data-lon="{{ c.lon }}"
-              title="{{ c.name }}">{{ c.label }}</button>
+              title="{{ c.name }}">{{ _(c.label) }}</button>
     {% endfor %}
   </div>
 </div>
@@ -33,24 +33,24 @@
   <aside class="map-side">
     {# Form vẫn chạy khi không có JavaScript: tải lại trang với ?q=... và Python trả kết quả #}
     <form class="map-search" method="get" action="{{ url_for('map_page') }}" role="search">
-      <label class="sr-only" for="map-q">Search places</label>
+      <label class="sr-only" for="map-q">{{ _('Search places') }}</label>
       <input id="map-q" name="q" value="{{ q }}" maxlength="100" autocomplete="off"
-             placeholder="Name or room, e.g. Delta 205">
-      <button class="btn small" type="submit">Search</button>
+             placeholder="{{ _('Name or room, e.g. Delta 205') }}">
+      <button class="btn small" type="submit">{{ _('Search') }}</button>
     </form>
 
-    <div class="map-chips" role="group" aria-label="Show on map">
+    <div class="map-chips" role="group" aria-label="{{ _('Show on map') }}">
       {% for c in categories %}
         <button type="button" class="map-chip" data-category="{{ c.code }}" style="--dot: {{ c.color }}"
                 aria-pressed="{{ 'true' if c.on else 'false' }}">
-          <span class="dot" aria-hidden="true"></span>{{ c.label }} <small>{{ c.count }}</small>
+          <span class="dot" aria-hidden="true"></span>{{ _(c.label) }} <small>{{ c.count }}</small>
         </button>
       {% endfor %}
     </div>
 
     {% if stops %}
       <section class="map-today">
-        <h2>Today's classes</h2>
+        <h2>{{ _("Today's classes") }}</h2>
         <ul>
           {% for stop in stops %}{% set c = stop['item'] %}
             <li>
@@ -58,8 +58,8 @@
               <span class="what">{{ c.name }}
                 {% if stop.place %}
                   <button type="button" class="link-btn" data-place="{{ stop.place.id }}">{{ stop.place.name }}</button>
-                {% elif c.room %}<small class="muted">{{ c.room }}: building not found</small>
-                {% else %}<small class="muted">no room set</small>{% endif %}
+                {% elif c.room %}<small class="muted">{{ _('{room}: building not found', room=c.room) }}</small>
+                {% else %}<small class="muted">{{ _('no room set') }}</small>{% endif %}
               </span>
             </li>
           {% endfor %}
@@ -67,31 +67,30 @@
       </section>
     {% endif %}
 
-    <h2 class="map-results-title" id="results-title">{{ 'Results' if q else 'Places' }}</h2>
+    <h2 class="map-results-title" id="results-title">{{ _('Results') if q else _('Places') }}</h2>
     <ul class="map-results" id="map-results" aria-live="polite">
       {% for p in results %}{{ result_item(p) }}{% endfor %}
-      {% if q and not results %}<li class="muted">No place matches "{{ q }}".</li>{% endif %}
-      {% if not q %}<li class="muted">Search above, or click a dot on the map. {{ place_count }} places on campus.</li>{% endif %}
+      {% if q and not results %}<li class="muted">{{ _('No place matches "{q}".', q=q) }}</li>{% endif %}
+      {% if not q %}<li class="muted">{{ _('Search above, or click a dot on the map. {n} places on campus.', n=place_count) }}</li>{% endif %}
     </ul>
     <div id="place-detail" class="place-detail" hidden></div>
   </aside>
 
   <div class="map-frame">
-    <div id="map" role="region" aria-label="Map of the NTHU campus"
+    <div id="map" role="region" aria-label="{{ _('Map of the NTHU campus') }}"
          data-style="https://tiles.openfreemap.org/styles/liberty"
          data-places-url="{{ url_for('api_places') }}"
          data-search-url="{{ url_for('api_places_search') }}"
          data-place-url="{{ url_for('api_place', place_id='__id__') }}"
          {% if campuses %}data-center="{{ campuses[0].lon }},{{ campuses[0].lat }}"{% endif %}
          data-focus="{{ focus.id if focus else '' }}"></div>
-    <p class="map-fallback" id="map-fallback" hidden>The map could not load. It needs an internet connection
-       and a browser with WebGL. Search and place details still work.</p>
+    <p class="map-fallback" id="map-fallback" hidden>{{ _('The map could not load. It needs an internet connection and a browser with WebGL. Search and place details still work.') }}</p>
   </div>
 </div>
 
-<p class="map-credit">Place data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL).
-   Map tiles by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> and OpenMapTiles.
-   Building heights in 3D come from OpenStreetMap; many are estimates. Walking times are straight-line estimates.</p>
+<p class="map-credit">{{ _('Place data') }} &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL).
+   {{ _('Map tiles') }}: <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, OpenMapTiles.
+   {{ _('Building heights in 3D come from OpenStreetMap; many are estimates. Walking times are straight-line estimates.') }}</p>
 {% endblock %}
 
 {% block scripts %}

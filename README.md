@@ -7,6 +7,7 @@ keep up with campus announcements and deadlines. I2P Final Project.
 - Accounts: sign up, log in, log out
 - Personal Calendar: month view, add / edit / delete events
 - Weekly Schedule: class timetable on the NTHU period grid (1-4, n, 5-9, a-d), with warnings when two classes overlap
+- English / 繁體中文 and light / dark mode (switch in the top bar or the menu)
 - Campus map: 2D/3D map of both Hsinchu campuses with search, categories, nearby food/bus stops and today's classes (data from OpenStreetMap)
 - Campus Announcements & Deadline Tracker: live data from the NTHU Data API,
   filter by category, office, language or keyword, and save a deadline to your

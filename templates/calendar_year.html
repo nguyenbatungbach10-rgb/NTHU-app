@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}{{ year }} - Calendar - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ year }} - {{ _('Calendar') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block content %}
 <div class="cal-bar">
   <div class="year-title">
     <h1>{{ year }}</h1>
-    <span class="year-total">{{ total }} event{{ '' if total == 1 else 's' }} and deadline{{ '' if total == 1 else 's' }}</span>
+    <span class="year-total">{{ _('{n} event and deadline', n=total) if total == 1 else _('{n} events and deadlines', n=total) }}</span>
   </div>
   <div class="cal-nav">
     {% if prev_year %}<a class="btn small ghost" href="{{ url_for('calendar_year_page', year=prev_year) }}">&larr; {{ prev_year }}</a>{% endif %}
-    {% if not is_this_year %}<a class="btn small ghost" href="{{ url_for('calendar_year_page') }}">This year</a>{% endif %}
+    {% if not is_this_year %}<a class="btn small ghost" href="{{ url_for('calendar_year_page') }}">{{ _('This year') }}</a>{% endif %}
     {% if next_year %}<a class="btn small ghost" href="{{ url_for('calendar_year_page', year=next_year) }}">{{ next_year }} &rarr;</a>{% endif %}
     <form class="year-go" method="get" action="{{ url_for('calendar_year_page') }}">
-      <label class="sr-only" for="year-input">Go to year</label>
+      <label class="sr-only" for="year-input">{{ _('Go to year') }}</label>
       <input id="year-input" name="year" type="number" min="{{ min_year }}" max="{{ max_year }}" value="{{ year }}" inputmode="numeric">
-      <button class="btn small" type="submit">Go</button>
+      <button class="btn small" type="submit">{{ _('Go') }}</button>
     </form>
   </div>
 </div>
@@ -23,10 +23,10 @@
 <div class="year-grid">
   {% for m in months %}
     <article class="mini {{ 'current' if m.is_current }}">
-      <h2><a class="mini-link" href="{{ url_for('calendar_page', month=m.iso) }}">{{ m.name }}</a>
-        {% if m.count %}<span class="mini-count" title="{{ m.count }} event(s) and deadline(s)">{{ m.count }}</span>{% endif %}</h2>
+      <h2><a class="mini-link" href="{{ url_for('calendar_page', month=m.iso) }}">{{ month_long(m.month) }}</a>
+        {% if m.count %}<span class="mini-count" title="{{ _('{n} event(s) and deadline(s)', n=m.count) }}">{{ m.count }}</span>{% endif %}</h2>
       <div class="mini-grid" aria-hidden="true">
-        {% for name in weekdays %}<span class="mini-wd">{{ name[0] }}</span>{% endfor %}
+        {% for name in weekday_initials() %}<span class="mini-wd">{{ name }}</span>{% endfor %}
         {% for week in m.weeks %}{% for cell in week %}
           {% if cell %}
             <span class="mini-day {{ 'today' if cell.is_today }} {{ 'has-1' if cell.count == 1 }} {{ 'has-2' if cell.count >= 2 }}">{{ cell.day }}</span>

@@ -8,6 +8,7 @@
   const detailBox = document.getElementById("place-detail");
   const input = document.getElementById("map-q");
   const placeUrl = (id) => box.dataset.placeUrl.replace("__id__", encodeURIComponent(id));
+  const t = (text) => (window.I18N && window.I18N[text]) || text;   // bản dịch do Python gửi xuống
   let map = null;
   let ready = false;   // true khi bản đồ và các lớp địa điểm đã tải xong
   let popup = null;
@@ -41,8 +42,10 @@
     const response = await fetch(`${box.dataset.searchUrl}?q=${encodeURIComponent(q)}`);
     const list = response.ok ? await response.json() : [];
     results.replaceChildren(...list.map(resultItem));
-    if (!list.length) results.append(el("li", "muted", q.trim() ? `No place matches "${q}".` : "Type a name to search."));
-    resultsTitle.textContent = q.trim() ? "Results" : "Places";
+    if (!list.length) {
+      results.append(el("li", "muted", q.trim() ? t('No place matches "{q}".').replace("{q}", q) : t("Type a name to search.")));
+    }
+    resultsTitle.textContent = t(q.trim() ? "Results" : "Places");
     return list;
   }
 
@@ -66,14 +69,14 @@
     const root = el("div", "map-pop");
     root.append(el("strong", "", d.name));
     if (d.name_en) root.append(el("div", "en", d.name_en));
-    root.append(el("div", "cat", d.category_label + (d.levels ? `, ${d.levels} floors` : "")));
+    root.append(el("div", "cat", d.category_label + (d.floors_text ? `, ${d.floors_text}` : "")));
     const near = Object.values(d.nearby);
     if (near.length) {
       const list = el("ul");
-      near.forEach((n) => list.append(el("li", "", `${n.label}: ${n.name}, ${n.meters} m (about ${n.minutes} min walk)`)));
+      near.forEach((n) => list.append(el("li", "", n.text)));   // câu đã được Python dịch và điền số
       root.append(list);
     }
-    const link = el("a", "", "Walking directions in Google Maps");
+    const link = el("a", "", d.directions_label);
     link.href = d.directions_url;
     link.target = "_blank";
     link.rel = "noopener";

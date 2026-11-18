@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Study - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Study') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {# Một dòng việc cần làm. Dùng cho cả việc cha và việc con (đệ quy một cấp). #}
 {% macro task_row(t, is_child=false) %}
@@ -8,55 +8,55 @@
     <input type="checkbox" class="task-check" data-toggle {{ 'checked' if t.done }}
            data-id="{{ t.id }}" data-title="{{ t.title }}" data-due="{{ t.due_date }}"
            data-subject="{{ t.subject_id if t.subject_id else '' }}"
-           aria-label="Mark &quot;{{ t.title }}&quot; as done">
+           aria-label="{{ _('Mark "{title}" as done', title=t.title) }}">
     <div class="task-main">
       <span class="task-title">{{ t.title }}</span>
       <span class="task-meta">
-        {% if t.due_date %}<span class="due {{ 'overdue' if t.overdue }}">{{ 'Overdue &middot; ' | safe if t.overdue }}{{ t.due_date }}</span>{% endif %}
+        {% if t.due_date %}<span class="due {{ 'overdue' if t.overdue }}">{% if t.overdue %}{{ _('Overdue') }} &middot; {% endif %}{{ t.due_date }}</span>{% endif %}
         {% if not is_child and t.subject_name %}<span class="chip">{{ t.subject_name }}</span>{% endif %}
-        {% if not is_child and t.subtasks_total %}<span class="muted">{{ t.subtasks_done }}/{{ t.subtasks_total }} steps</span>{% endif %}
+        {% if not is_child and t.subtasks_total %}<span class="muted">{{ _('{done}/{total} steps', done=t.subtasks_done, total=t.subtasks_total) }}</span>{% endif %}
       </span>
     </div>
     <div class="task-actions">
       {% if not is_child %}
-        <button class="btn small ghost" type="button" data-add-task data-parent="{{ t.id }}">+ Step</button>
+        <button class="btn small ghost" type="button" data-add-task data-parent="{{ t.id }}">+ {{ _('Step') }}</button>
       {% endif %}
       <button class="btn small ghost" type="button" data-task
               data-id="{{ t.id }}" data-title="{{ t.title }}" data-due="{{ t.due_date }}"
               data-subject="{{ t.subject_id if t.subject_id else '' }}"
-              data-parent="{{ t.parent_id if t.parent_id else '' }}" data-done="{{ 1 if t.done else 0 }}">Edit</button>
+              data-parent="{{ t.parent_id if t.parent_id else '' }}" data-done="{{ 1 if t.done else 0 }}">{{ _('Edit') }}</button>
     </div>
   </li>
 {% endmacro %}
 
 {% block content %}
 <div class="cal-bar">
-  <h1>Study planning</h1>
+  <h1>{{ _('Study planning') }}</h1>
   <div class="cal-nav">
-    <button class="btn small" type="button" data-add-task>+ Add task</button>
-    <button class="btn small ghost" type="button" data-add-session data-date="{{ today }}">+ Log study time</button>
-    <button class="btn small ghost" type="button" data-add-subject>+ Add subject</button>
+    <button class="btn small" type="button" data-add-task>+ {{ _('Add task') }}</button>
+    <button class="btn small ghost" type="button" data-add-session data-date="{{ today }}">+ {{ _('Log study time') }}</button>
+    <button class="btn small ghost" type="button" data-add-subject>+ {{ _('Add subject') }}</button>
   </div>
 </div>
 
 <section class="stats">
   <article class="stat">
-    <span class="stat-label">Open tasks</span>
+    <span class="stat-label">{{ _('Open tasks') }}</span>
     <span class="stat-value">{{ stats.open }}</span>
-    <span class="stat-note">{{ stats.done }} done</span>
+    <span class="stat-note">{{ _('{n} done', n=stats.done) }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Overdue</span>
+    <span class="stat-label">{{ _('Overdue') }}</span>
     <span class="stat-value {{ 'bad' if stats.overdue }}">{{ stats.overdue }}</span>
-    <span class="stat-note">{{ 'catch up when you can' if stats.overdue else 'nothing late' }}</span>
+    <span class="stat-note">{{ _('catch up when you can') if stats.overdue else _('nothing late') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Studied this week</span>
+    <span class="stat-label">{{ _('Studied this week') }}</span>
     <span class="stat-value">{{ fmt_minutes(stats.week_minutes) }}</span>
-    <span class="stat-note">on {{ stats.days_studied_this_week }} day{{ '' if stats.days_studied_this_week == 1 else 's' }}</span>
+    <span class="stat-note">{{ _('on {n} day', n=stats.days_studied_this_week) if stats.days_studied_this_week == 1 else _('on {n} days', n=stats.days_studied_this_week) }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Studied today</span>
+    <span class="stat-label">{{ _('Studied today') }}</span>
     <span class="stat-value">{{ fmt_minutes(stats.today_minutes) }}</span>
     <span class="stat-note">{{ today }}</span>
   </article>
@@ -64,7 +64,7 @@
 
 <div class="study-grid">
   <section class="panel">
-    <h2>Tasks</h2>
+    <h2>{{ _('Tasks') }}</h2>
     {% if task_tree %}
       <ul class="tasks">
         {% for t in task_tree %}
@@ -73,41 +73,40 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="empty">No tasks yet. Press <strong>+ Add task</strong>, then use <strong>+ Step</strong>
-         to break a big task into small steps.</p>
+      <p class="empty">{{ _('No tasks yet. Press "+ Add task", then use "+ Step" to break a big task into small steps.') }}</p>
     {% endif %}
   </section>
 
   <section class="panel">
-    <h2>Subjects &amp; materials</h2>
+    <h2>{{ _('Subjects & materials') }}</h2>
     {% if subjects %}
       {% for s in subjects %}
         <div class="subject">
           <div class="subject-head">
             <strong>{{ s.name }}</strong>
-            <span class="muted">{{ fmt_minutes(s.week_minutes) }} this week</span>
+            <span class="muted">{{ _('{t} this week', t=fmt_minutes(s.week_minutes)) }}</span>
             <button class="btn small ghost" type="button" data-subject-edit
-                    data-id="{{ s.id }}" data-name="{{ s.name }}" data-notes="{{ s.notes }}">Edit</button>
+                    data-id="{{ s.id }}" data-name="{{ s.name }}" data-notes="{{ s.notes }}">{{ _('Edit') }}</button>
           </div>
           {# urlize biến link http(s) thành thẻ <a>; nội dung vẫn được escape nên an toàn #}
           {% if s.notes %}<p class="notes">{{ s.notes | urlize(40, target="_blank", rel="noopener noreferrer") }}</p>{% endif %}
         </div>
       {% endfor %}
     {% else %}
-      <p class="empty">No subjects yet. Add one to keep its links and notes together.</p>
+      <p class="empty">{{ _('No subjects yet. Add one to keep its links and notes together.') }}</p>
     {% endif %}
   </section>
 </div>
 
 <section class="panel">
-  <h2>Study time</h2>
+  <h2>{{ _('Study time') }}</h2>
   {% if week_rows %}
-    <h3 class="sub">This week by subject</h3>
+    <h3 class="sub">{{ _('This week by subject') }}</h3>
     {% set top = week_rows[0].minutes %}
     <ul class="bars">
       {% for row in week_rows %}
         <li>
-          <span class="bar-name">{{ row.name }}</span>
+          <span class="bar-name">{{ _(row.name) if row.subject_id is none else row.name }}</span>
           <div class="bar"><span style="width: {{ (row.minutes * 100 / top) | round | int }}%"></span></div>
           <span class="bar-value">{{ fmt_minutes(row.minutes) }}</span>
         </li>
@@ -115,10 +114,10 @@
     </ul>
   {% endif %}
   {% if sessions %}
-    <h3 class="sub">Recent sessions</h3>
+    <h3 class="sub">{{ _('Recent sessions') }}</h3>
     <div class="table-wrap">
     <table class="courses">
-      <thead><tr><th>Date</th><th>Subject</th><th class="num">Time</th><th>Note</th><th></th></tr></thead>
+      <thead><tr><th>{{ _('Date') }}</th><th>{{ _('Subject') }}</th><th class="num">{{ _('Time') }}</th><th>{{ _('Note') }}</th><th></th></tr></thead>
       <tbody>
         {% for s in sessions %}
           <tr>
@@ -129,7 +128,7 @@
             <td class="num">
               <button class="btn small ghost" type="button" data-session
                       data-id="{{ s.id }}" data-date="{{ s.date }}" data-minutes="{{ s.minutes }}"
-                      data-subject="{{ s.subject_id if s.subject_id else '' }}" data-note="{{ s.note }}">Edit</button>
+                      data-subject="{{ s.subject_id if s.subject_id else '' }}" data-note="{{ s.note }}">{{ _('Edit') }}</button>
             </td>
           </tr>
         {% endfor %}
@@ -137,94 +136,94 @@
     </table>
     </div>
   {% else %}
-    <p class="empty">No study time logged yet. Press <strong>+ Log study time</strong> after a session.</p>
+    <p class="empty">{{ _('No study time logged yet. Press "+ Log study time" after a session.') }}</p>
   {% endif %}
 </section>
 
 {# ---------- ba hộp thoại ---------- #}
 <dialog id="task-dialog">
   <form class="dialog-form">
-    <h2>Add task</h2>
+    <h2>{{ _('Add task') }}</h2>
     <input type="hidden" name="parent_id">
     <input type="hidden" name="done">
     <div class="field">
-      <label for="tk-title">Title</label>
+      <label for="tk-title">{{ _('Title') }}</label>
       <input id="tk-title" name="title" maxlength="200" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="tk-due">Due date <small>(optional)</small></label>
+        <label for="tk-due">{{ _('Due date') }} <small>{{ _('(optional)') }}</small></label>
         <input id="tk-due" name="due_date" type="date">
       </div>
       <div class="field" data-subject-field>
-        <label for="tk-subject">Subject <small>(optional)</small></label>
+        <label for="tk-subject">{{ _('Subject') }} <small>{{ _('(optional)') }}</small></label>
         <select id="tk-subject" name="subject_id">
-          <option value="">None</option>
+          <option value="">{{ _('None') }}</option>
           {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
         </select>
       </div>
     </div>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="subject-dialog">
   <form class="dialog-form">
-    <h2>Add subject</h2>
+    <h2>{{ _('Add subject') }}</h2>
     <div class="field">
-      <label for="sb-name">Name</label>
+      <label for="sb-name">{{ _('Name') }}</label>
       <input id="sb-name" name="name" maxlength="100" required>
     </div>
     <div class="field">
-      <label for="sb-notes">Materials &amp; notes <small>(links, books)</small></label>
+      <label for="sb-notes">{{ _('Materials & notes') }} <small>{{ _('(links, books)') }}</small></label>
       <textarea id="sb-notes" name="notes" rows="4" maxlength="1000"></textarea>
     </div>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="session-dialog">
   <form class="dialog-form">
-    <h2>Log study time</h2>
+    <h2>{{ _('Log study time') }}</h2>
     <div class="field-row">
       <div class="field">
-        <label for="se-date">Date</label>
+        <label for="se-date">{{ _('Date') }}</label>
         <input id="se-date" name="date" type="date" required>
       </div>
       <div class="field">
-        <label for="se-minutes">Minutes</label>
+        <label for="se-minutes">{{ _('Minutes') }}</label>
         <input id="se-minutes" name="minutes" type="number" min="1" max="1440" step="1" required>
       </div>
     </div>
     <div class="field">
-      <label for="se-subject">Subject <small>(optional)</small></label>
+      <label for="se-subject">{{ _('Subject') }} <small>{{ _('(optional)') }}</small></label>
       <select id="se-subject" name="subject_id">
-        <option value="">None</option>
+        <option value="">{{ _('None') }}</option>
         {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
       </select>
     </div>
     <div class="field">
-      <label for="se-note">Note <small>(optional)</small></label>
+      <label for="se-note">{{ _('Note') }} <small>{{ _('(optional)') }}</small></label>
       <input id="se-note" name="note" maxlength="300">
     </div>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>

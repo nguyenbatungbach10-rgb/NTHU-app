@@ -1,44 +1,44 @@
 {% extends "base.html" %}
 {% from "_macros.html" import announcement %}
 
-{% block title %}Announcements - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Announcements') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block content %}
-<h1>Campus Announcements</h1>
+<h1>{{ _('Campus Announcements') }}</h1>
 
 {% if error %}
   <div class="alert">
-    Showing sample data. {{ error }}
+    {{ _('Showing sample data.') }} {{ _(error) }}
   </div>
 {% endif %}
 
 {# Form dùng method GET: khi bấm Filter, trình duyệt gọi /announcements?office=...&cat=...&lang=...&q=... #}
 <form class="filters" method="get" action="{{ url_for('announcements') }}">
-  <select name="cat" aria-label="Category">
-    <option value="">All categories</option>
+  <select name="cat" aria-label="{{ _('Category') }}">
+    <option value="">{{ _('All categories') }}</option>
     {% for name, n in categories %}
-      <option value="{{ name }}" {{ 'selected' if name == cat }}>{{ name }} ({{ n }})</option>
+      <option value="{{ name }}" {{ 'selected' if name == cat }}>{{ _(name) }} ({{ n }})</option>
     {% endfor %}
   </select>
-  <select name="office" aria-label="Office">
-    <option value="">All offices</option>
+  <select name="office" aria-label="{{ _('Office') }}">
+    <option value="">{{ _('All offices') }}</option>
     {% for name in offices %}
       <option value="{{ name }}" {{ 'selected' if name == office }}>{{ name }}</option>
     {% endfor %}
   </select>
-  <select name="lang" aria-label="Language">
-    {% for value, label in [('', 'All languages'), ('en', 'English'), ('zh-tw', '中文')] %}
+  <select name="lang" aria-label="{{ _('Language') }}">
+    {% for value, label in [('', _('All languages')), ('en', 'English'), ('zh-tw', '中文')] %}
       <option value="{{ value }}" {{ 'selected' if value == lang }}>{{ label }}</option>
     {% endfor %}
   </select>
-  <input type="search" name="q" value="{{ q }}" placeholder="Search keyword...">
-  <button class="btn" type="submit">Filter</button>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Search keyword...') }}">
+  <button class="btn" type="submit">{{ _('Filter') }}</button>
   {% if q or office or lang or cat %}
-    <a class="clear" href="{{ url_for('announcements') }}">Clear</a>
+    <a class="clear" href="{{ url_for('announcements') }}">{{ _('Clear') }}</a>
   {% endif %}
 </form>
 
-<p class="count">{{ count }} of {{ total }} announcements, newest first</p>
+<p class="count">{{ _('{count} of {total} announcements, newest first', count=count, total=total) }}</p>
 
 {% if items %}
   <ul class="list">
@@ -54,20 +54,20 @@
     <nav class="pager">
       {% if page > 1 %}
         <a class="btn small"
-           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; Newer</a>
+           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page - 1) }}">&larr; {{ _('Newer') }}</a>
       {% else %}
         <span></span>
       {% endif %}
-      <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+      <span class="page-info">{{ _('Page {page} of {pages}', page=page, pages=total_pages) }}</span>
       {% if page < total_pages %}
         <a class="btn small"
-           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">Older &rarr;</a>
+           href="{{ url_for('announcements', q=q or None, office=office or None, lang=lang or None, cat=cat or None, page=page + 1) }}">{{ _('Older') }} &rarr;</a>
       {% else %}
         <span></span>
       {% endif %}
     </nav>
   {% endif %}
 {% else %}
-  <p class="empty">No announcements match your filter.</p>
+  <p class="empty">{{ _('No announcements match your filter.') }}</p>
 {% endif %}
 {% endblock %}

@@ -12,7 +12,7 @@
     <span class="meta-left">
       <span class="office">{{ item.office }}</span>
       {% if item.category and item.category != 'Other' %}
-        <span class="chip">{{ item.category }}</span>
+        <span class="chip">{{ _(item.category) }}</span>
       {% endif %}
     </span>
     <span class="date">{{ item.date }}</span>
@@ -26,20 +26,20 @@
   </h3>
   {% if show_save %}
     {% if not item.date %}
-      <button class="btn small" type="button" disabled title="This announcement has no date">Save to Calendar</button>
+      <button class="btn small" type="button" disabled title="{{ _('This announcement has no date') }}">{{ _('Save to Calendar') }}</button>
     {% elif not logged_in %}
-      <a class="btn small" href="{{ login_url }}">Log in to save</a>
+      <a class="btn small" href="{{ login_url }}">{{ _('Log in to save') }}</a>
     {% elif item.saved %}
-      <button class="btn small" type="button" disabled>Saved &#10003;</button>
+      <button class="btn small" type="button" disabled>{{ _('Saved') }} &#10003;</button>
     {% else %}
       {# static/app.js gửi các data-* này tới POST /api/events #}
       <button class="btn small" type="button" data-save
               data-title="{{ item.event_title }}" data-date="{{ item.event_date or item.date }}"
-              data-office="{{ item.office }}" data-url="{{ item.link }}">Save to Calendar</button>
+              data-office="{{ item.office }}" data-url="{{ item.link }}">{{ _('Save to Calendar') }}</button>
     {% endif %}
     {# Ngày lấy từ tiêu đề là đoán, nên nói rõ cho người dùng tự kiểm tra #}
     {% if item.date_from_title %}
-      <span class="date-hint">Will be saved on {{ item.event_date }} (date found in the title)</span>
+      <span class="date-hint">{{ _('Will be saved on {date} (date found in the title)', date=item.event_date) }}</span>
     {% endif %}
   {% endif %}
 </li>

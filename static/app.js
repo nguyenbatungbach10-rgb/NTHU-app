@@ -3,6 +3,9 @@
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
 
+// Dịch chữ hiển thị: bản dịch do Python gửi xuống (window.I18N trong base.html); tiếng Anh thì giữ nguyên.
+const t = (text) => (window.I18N && window.I18N[text]) || text;
+
 // Gọi API: tự gắn CSRF token, gửi/nhận JSON, ném lỗi kèm thông báo của server.
 async function api(method, url, body) {
   const response = await fetch(url, {
@@ -13,7 +16,7 @@ async function api(method, url, body) {
   });
   const data = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error((data && data.error) || `Request failed (${response.status})`);
+    throw new Error((data && data.error) || `${t("Request failed")} (${response.status})`);
   }
   return data;
 }
@@ -29,10 +32,10 @@ document.querySelectorAll("[data-save]").forEach((button) => {
         description: button.dataset.office,
         source_url: button.dataset.url,
       });
-      button.textContent = "Saved ✓";
+      button.textContent = `${t("Saved")} ✓`;
     } catch (error) {
       button.disabled = false;
-      button.textContent = "Try again";
+      button.textContent = t("Try again");
       button.title = error.message;
     }
   });
@@ -52,7 +55,7 @@ if (dialog) {
 
   function openDialog(event) {
     editingId = event.id || null;
-    heading.textContent = editingId ? "Edit event" : "Add event";
+    heading.textContent = t(editingId ? "Edit event" : "Add event");
     form.elements.title.value = event.title || "";
     form.elements.date.value = event.date || "";
     form.elements.time.value = event.time || "";
@@ -95,7 +98,7 @@ if (dialog) {
   });
 
   deleteButton.addEventListener("click", async () => {
-    if (!confirm("Delete this event?")) return;
+    if (!confirm(t("Delete this event?"))) return;
     try {
       await api("DELETE", `/api/events/${editingId}`);
       location.reload();
@@ -117,7 +120,7 @@ if (courseDialog) {
 
   function openCourseDialog(course) {
     editingId = course.id || null;
-    heading.textContent = editingId ? "Edit course" : "Add course";
+    heading.textContent = t(editingId ? "Edit course" : "Add course");
     form.elements.name.value = course.name || "";
     form.elements.credits.value = course.credits || "3";
     form.elements.semester.value = course.semester || "";
@@ -156,7 +159,7 @@ if (courseDialog) {
   });
 
   deleteButton.addEventListener("click", async () => {
-    if (!confirm("Delete this course?")) return;
+    if (!confirm(t("Delete this course?"))) return;
     try {
       await api("DELETE", `/api/courses/${editingId}`);
       location.reload();
@@ -212,7 +215,7 @@ function crudDialog(dialogId, endpoint, noun, fill, toPayload) {
   });
 
   deleteButton.addEventListener("click", async () => {
-    if (!confirm(`Delete this ${noun}?`)) return;
+    if (!confirm(t(`Delete this ${noun}?`))) return;
     try {
       await api("DELETE", `${endpoint}/${editingId}`);
       location.reload();
@@ -223,7 +226,7 @@ function crudDialog(dialogId, endpoint, noun, fill, toPayload) {
 
   return function open(data) {
     editingId = data.id || null;
-    heading.textContent = data.heading || `${editingId ? "Edit" : "Add"} ${noun}`;
+    heading.textContent = t(data.heading || `${editingId ? "Edit" : "Add"} ${noun}`);
     fill(form, data);
     deleteButton.hidden = !editingId;
     errorBox.textContent = "";
@@ -354,7 +357,7 @@ document.querySelectorAll("[data-class]").forEach((card) => {
 
   function setOpen(open) {
     button.setAttribute("aria-expanded", String(open));
-    button.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    button.setAttribute("aria-label", open ? button.dataset.labelClose : button.dataset.labelOpen);
     panel.hidden = !open;
   }
 
@@ -384,3 +387,11 @@ document.querySelectorAll("[data-class]").forEach((card) => {
     }
   });
 })();
+
+// ---------- Nút sáng/tối ở thanh trên ----------
+// Khi đang "theo hệ thống", chế độ thật phụ thuộc máy; JS chỉ chọn giá trị ngược lại trước khi gửi form.
+document.querySelector("[data-theme-toggle]")?.addEventListener("click", (event) => {
+  const mode = document.documentElement.dataset.theme;
+  const dark = mode === "dark" || (mode === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  event.currentTarget.value = dark ? "light" : "dark";
+});

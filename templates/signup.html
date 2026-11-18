@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Sign up - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Sign up') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block content %}
 <form class="form-card" method="post" action="{{ url_for('signup') }}">
-  <h1>Create your account</h1>
+  <h1>{{ _('Create your account') }}</h1>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="field">
-    <label for="email">Email</label>
+    <label for="email">{{ _('Email') }}</label>
     <input id="email" name="email" type="email" value="{{ email }}" required autofocus>
   </div>
   <div class="field">
-    <label for="password">Password <small>(at least 8 characters)</small></label>
+    <label for="password">{{ _('Password') }} <small>{{ _('(at least 8 characters)') }}</small></label>
     <input id="password" name="password" type="password" minlength="8" required>
   </div>
   <div class="field">
-    <label for="confirm">Confirm password</label>
+    <label for="confirm">{{ _('Confirm password') }}</label>
     <input id="confirm" name="confirm" type="password" minlength="8" required>
   </div>
 
-  <button class="btn" type="submit">Sign up</button>
-  <p class="form-note">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  <button class="btn" type="submit">{{ _('Sign up') }}</button>
+  <p class="form-note">{{ _('Already have an account?') }} <a href="{{ url_for('login') }}">{{ _('Log in') }}</a></p>
 </form>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Credits & GPA - NTHU Campus Assistant{% endblock %}
+{% block title %}{{ _('Credits & GPA') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {# Hiển thị GPA: số có 2 chữ số thập phân, hoặc dấu gạch nếu chưa có điểm nào #}
 {% macro fmt(value) %}{% if value is none %}&mdash;{% else %}{{ '%.2f'|format(value) }}{% endif %}{% endmacro %}
@@ -8,101 +8,98 @@
 {# Một câu lời khuyên từ kết quả required_average() (Python đã tính xong, ở đây chỉ hiển thị) #}
 {% macro advice(result, when) %}
   {% if result.status == 'no_credits' %}
-    <span class="muted">No credits to plan for {{ when }}.</span>
+    <span class="muted">{{ _('No credits to plan for {when}.', when=when) }}</span>
   {% elif result.status == 'achieved' %}
-    <strong>Goal reached</strong> for {{ when }}: you only need to pass (C- or better).
+    {{ _('Goal reached for {when}: you only need to pass (C- or better).', when=when) }}
   {% elif result.status == 'possible' %}
-    For {{ when }} you need an average of <strong>{{ '%.2f'|format(result.needed) }}</strong>
-    (about <strong>{{ result.letter }}</strong> or better).
+    {{ _('For {when} you need an average of {needed} (about {letter} or better).', when=when, needed='%.2f'|format(result.needed), letter=result.letter) }}
   {% else %}
-    <strong class="bad">Not reachable</strong> for {{ when }}: you would need an average of
-    {{ '%.2f'|format(result.needed) }}, above the maximum of 4.30.
+    <strong class="bad">{{ _('Not reachable') }}</strong>
+    {{ _('for {when}: you would need an average of {needed}, above the maximum of 4.30.', when=when, needed='%.2f'|format(result.needed)) }}
   {% endif %}
 {% endmacro %}
 
 {% block content %}
 <div class="cal-bar">
-  <h1>Credits &amp; GPA</h1>
+  <h1>{{ _('Credits & GPA') }}</h1>
   <div class="cal-nav">
-    <button class="btn small" type="button" data-add-course data-semester="{{ default_semester }}">+ Add course</button>
+    <button class="btn small" type="button" data-add-course data-semester="{{ default_semester }}">+ {{ _('Add course') }}</button>
   </div>
 </div>
 
 <section class="stats">
   <article class="stat">
-    <span class="stat-label">Cumulative GPA</span>
+    <span class="stat-label">{{ _('Cumulative GPA') }}</span>
     <span class="stat-value">{{ fmt(overview.gpa) }}</span>
-    <span class="stat-note">out of 4.30</span>
+    <span class="stat-note">{{ _('out of 4.30') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Credits earned</span>
+    <span class="stat-label">{{ _('Credits earned') }}</span>
     <span class="stat-value">{{ overview.credits_earned }} <small>/ {{ overview.credits_required }}</small></span>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
          aria-valuenow="{{ overview.progress_percent }}"><span style="width: {{ overview.progress_percent }}%"></span></div>
-    <span class="stat-note">{{ overview.progress_percent }}% done
-      {%- if overview.credits_planned %} &middot; {{ overview.credits_planned }} planned{% endif %}</span>
+    <span class="stat-note">{{ _('{p}% done', p=overview.progress_percent) }}
+      {%- if overview.credits_planned %} &middot; {{ _('{n} planned', n=overview.credits_planned) }}{% endif %}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Target GPA</span>
+    <span class="stat-label">{{ _('Target GPA') }}</span>
     <span class="stat-value">{{ '%.2f'|format(goals.target_gpa) }}</span>
-    <span class="stat-note">{{ 'default, change it below' if goals.is_default else 'your goal' }}</span>
+    <span class="stat-note">{{ _('default, change it below') if goals.is_default else _('your goal') }}</span>
   </article>
   <article class="stat">
-    <span class="stat-label">Credits left</span>
+    <span class="stat-label">{{ _('Credits left') }}</span>
     <span class="stat-value">{{ overview.credits_remaining }}</span>
     <span class="stat-note">
-      {% if overview.credits_per_semester %}about {{ overview.credits_per_semester }} per semester
-        over {{ overview.semesters_left }} semesters{% else %}no semesters left in 4 years{% endif %}
+      {% if overview.credits_per_semester %}{{ _('about {n} per semester over {s} semesters', n=overview.credits_per_semester, s=overview.semesters_left) }}{% else %}{{ _('no semesters left in 4 years') }}{% endif %}
     </span>
   </article>
 </section>
 
 <section class="advice">
-  <h2>What do I need?</h2>
-  <p>{{ advice(overview.needed_term, 'your planned courses') }}</p>
-  <p>{{ advice(overview.needed_overall, 'all remaining credits') }}</p>
+  <h2>{{ _('What do I need?') }}</h2>
+  <p>{{ advice(overview.needed_term, _('your planned courses')) }}</p>
+  <p>{{ advice(overview.needed_overall, _('all remaining credits')) }}</p>
 </section>
 
 <section class="goal-box">
-  <h2>My goals</h2>
+  <h2>{{ _('My goals') }}</h2>
   <form id="goal-form" class="goal-form">
     <div class="field">
-      <label for="goal-gpa">Target GPA <small>(0 - 4.3)</small></label>
+      <label for="goal-gpa">{{ _('Target GPA') }} <small>(0 - 4.3)</small></label>
       <input id="goal-gpa" name="target_gpa" type="number" step="0.01" min="0" max="4.3"
              value="{{ '%.2f'|format(goals.target_gpa) }}" required>
     </div>
     <div class="field">
-      <label for="goal-credits">Credits to graduate</label>
+      <label for="goal-credits">{{ _('Credits to graduate') }}</label>
       <input id="goal-credits" name="credits_required" type="number" step="1" min="1" max="300"
              value="{{ goals.credits_required }}" required>
     </div>
-    <button class="btn small" type="submit">Save goals</button>
+    <button class="btn small" type="submit">{{ _('Save goals') }}</button>
   </form>
   {% if goals.is_default %}
-    <p class="form-note">The 128 credits is only a default. Check your department's graduation requirement and change it.</p>
+    <p class="form-note">{{ _("The 128 credits is only a default. Check your department's graduation requirement and change it.") }}</p>
   {% endif %}
   <p class="form-error" id="goal-error" role="alert"></p>
 </section>
 
 {% if not has_courses %}
-  <p class="empty">No courses yet. Press <strong>+ Add course</strong> to add the ones you have taken,
-     or the ones you plan to take (leave the grade empty).</p>
+  <p class="empty">{{ _('No courses yet. Press "+ Add course" to add the ones you have taken, or the ones you plan to take (leave the grade empty).') }}</p>
 {% endif %}
 
 {% for sem in semesters %}
   <section class="semester">
     <div class="semester-head">
-      <h2>Semester {{ sem.semester }}</h2>
+      <h2>{{ _('Semester {s}', s=sem.semester) }}</h2>
       <span class="semester-stats">
-        GPA {{ fmt(sem.gpa) }} &middot; cumulative {{ fmt(sem.cumulative_gpa) }}
-        &middot; {{ sem.credits_earned }} credits earned
-        {%- if sem.credits_planned %} &middot; {{ sem.credits_planned }} planned{% endif %}
+        GPA {{ fmt(sem.gpa) }} &middot; {{ _('cumulative') }} {{ fmt(sem.cumulative_gpa) }}
+        &middot; {{ _('{n} credits earned', n=sem.credits_earned) }}
+        {%- if sem.credits_planned %} &middot; {{ _('{n} planned', n=sem.credits_planned) }}{% endif %}
       </span>
-      <button class="btn small ghost" type="button" data-add-course data-semester="{{ sem.semester }}">+ Add</button>
+      <button class="btn small ghost" type="button" data-add-course data-semester="{{ sem.semester }}">+ {{ _('Add') }}</button>
     </div>
     <div class="table-wrap">
     <table class="courses">
-      <thead><tr><th>Course</th><th class="num">Credits</th><th>Grade</th><th></th></tr></thead>
+      <thead><tr><th>{{ _('Course') }}</th><th class="num">{{ _('Credits') }}</th><th>{{ _('Grade') }}</th><th></th></tr></thead>
       <tbody>
         {% for c in sem.courses %}
           <tr>
@@ -112,16 +109,16 @@
               {% if c.grade %}
                 <span class="grade {{ 'fail' if c.grade != 'P' and grade_points[c.grade] < 1.7 }}">{{ c.grade }}</span>
               {% else %}
-                <span class="grade planned">Planned</span>
+                <span class="grade planned">{{ _('Planned') }}</span>
                 {% if overview.needed_term.status == 'possible' %}
-                  <span class="aim">aim &ge; {{ overview.needed_term.letter }}</span>
+                  <span class="aim">{{ _('aim') }} &ge; {{ overview.needed_term.letter }}</span>
                 {% endif %}
               {% endif %}
             </td>
             <td class="num">
               <button class="btn small ghost" type="button" data-course
                       data-id="{{ c.id }}" data-name="{{ c.name }}" data-credits="{{ c.credits }}"
-                      data-semester="{{ c.semester }}" data-grade="{{ c.grade }}">Edit</button>
+                      data-semester="{{ c.semester }}" data-grade="{{ c.grade }}">{{ _('Edit') }}</button>
             </td>
           </tr>
         {% endfor %}
@@ -133,26 +130,26 @@
 
 <dialog id="course-dialog">
   <form class="dialog-form">
-    <h2>Add course</h2>
+    <h2>{{ _('Add course') }}</h2>
     <div class="field">
-      <label for="co-name">Course name</label>
+      <label for="co-name">{{ _('Course name') }}</label>
       <input id="co-name" name="name" maxlength="100" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="co-credits">Credits</label>
+        <label for="co-credits">{{ _('Credits') }}</label>
         <input id="co-credits" name="credits" type="number" min="0" max="12" step="1" value="3" required>
       </div>
       <div class="field">
-        <label for="co-semester">Semester <small>(e.g. 115-1)</small></label>
+        <label for="co-semester">{{ _('Semester') }} <small>{{ _('(e.g. 115-1)') }}</small></label>
         <input id="co-semester" name="semester" pattern="[0-9]{3}-[1-3]" maxlength="5" required>
       </div>
     </div>
     <div class="field">
-      <label for="co-grade">Grade</label>
+      <label for="co-grade">{{ _('Grade') }}</label>
       <select id="co-grade" name="grade">
-        <option value="">Not graded yet (planned)</option>
-        <option value="P">P (pass, no GPA)</option>
+        <option value="">{{ _('Not graded yet (planned)') }}</option>
+        <option value="P">{{ _('P (pass, no GPA)') }}</option>
         {% for letter in letters %}
           <option value="{{ letter }}">{{ letter }}</option>
         {% endfor %}
@@ -160,10 +157,10 @@
     </div>
     <p class="form-error" role="alert"></p>
     <div class="dialog-actions">
-      <button class="btn danger" type="button" data-delete hidden>Delete</button>
+      <button class="btn danger" type="button" data-delete hidden>{{ _('Delete') }}</button>
       <span class="spacer"></span>
-      <button class="btn ghost" type="button" data-cancel>Cancel</button>
-      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" data-cancel>{{ _('Cancel') }}</button>
+      <button class="btn" type="submit">{{ _('Save') }}</button>
     </div>
   </form>
 </dialog>

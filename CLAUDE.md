@@ -32,6 +32,9 @@ in simple words (the owner is a beginner), so we can answer TA questions.
 Accounts: sign-up / log-in / log-out with sessions.
 UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), home page
    "today" panel (classes today + tasks due, study_logic.due_today).
+Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in templates, cookie "lang",
+   Accept-Language fallback, API errors translated in after_request, JS strings via window.I18N).
+Themes: light / dark / auto (cookie "theme", <html data-theme>, CSS light-dark() tokens). POST /settings saves both.
 
 ## Stack
 Flask, Jinja2 template inheritance + macros, requests, sqlite3 (stdlib, no ORM),
@@ -49,6 +52,9 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 - Every POST/PUT/DELETE needs the CSRF token (form field csrf_token or header
   X-CSRF-Token). API errors are JSON {"error": "..."}.
 - Never mutate the shared announcements cache; use copies (see mark_saved()).
+- Every user-facing string goes through _() (templates) or t() (JS, keys in i18n.JS_KEYS) and needs a
+  zh-TW entry in i18n.ZH; tests/test_i18n.py fails on a missing one. Never build sentences by concatenation.
+- Colours: only CSS variables from the top of style.css (light-dark()); no new hard-coded colours.
 - Map: classification, search, room matching and distances live in map_logic.py; static/map.js only
   draws. OpenStreetMap data is ODbL: keep the "© OpenStreetMap contributors" credit on /map.
 
@@ -60,6 +66,7 @@ deadline_logic.py       read deadline/event dates from announcement titles (pure
 schedule_logic.py       validate_class, weekly timetable, overlap detection (pure Python)
 study_logic.py          validate subject/task/session, task tree, week totals (pure Python)
 gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
+i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
 tools/fetch_map_data.py downloads a fresh data/nthu_osm.csv from the Overpass API
@@ -75,10 +82,11 @@ GIAI_THICH_SCHEDULE.md  explanation of the weekly timetable
 GIAI_THICH_DEADLINE.md  explanation of reading dates from announcement titles
 GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours, today panel
 GIAI_THICH_MAP.md       explanation of the campus map
+GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (337 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (368 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
@@ -98,5 +106,5 @@ Before deploying, set the SECRET_KEY environment variable.
 
 ## Conventions
 - Keep functions short, with a one-line docstring (Vietnamese or English).
-- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~52% (2026-11-18, without tests).
+- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~54% (2026-11-18, without tests).
 - Add a test for every new behaviour, especially security-related ones.
