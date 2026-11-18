@@ -592,6 +592,25 @@ def update_class(user_id, class_id, item):
     return get_class(user_id, class_id) if cursor.rowcount else None
 
 
+def delete_all_classes(user_id):
+    """Xóa cả thời khóa biểu của một người (dùng khi nhập lại thời khóa biểu học kỳ mới)."""
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM classes WHERE user_id = ?", (user_id,))
+    conn.commit()
+    return cursor.rowcount
+
+
+def add_classes(user_id, items):
+    """Thêm nhiều môn trong một lần commit (nhập thời khóa biểu). Trả về số môn đã thêm."""
+    conn = get_db()
+    conn.executemany(
+        'INSERT INTO classes (user_id, name, weekday, start, "end", room) VALUES (?, ?, ?, ?, ?, ?)',
+        [(user_id, i["name"], i["weekday"], i["start"], i["end"], i["room"]) for i in items],
+    )
+    conn.commit()
+    return len(items)
+
+
 def delete_class(user_id, class_id):
     conn = get_db()
     cursor = conn.execute("DELETE FROM classes WHERE id = ? AND user_id = ?", (class_id, user_id))

@@ -210,6 +210,49 @@ Dùng `setdefault` để không ghi đè nếu một route đã tự đặt head
 - Template không bao giờ thấy bản băm mật khẩu: `g.password_hash` tách riêng khỏi `g.user`.
 - Lần đầu cập nhật bản này lên server, mọi người đang đăng nhập sẽ bị đăng xuất một lần (phiên cũ chưa có dấu `auth`).
 
+## 18. Đường đi giữa hai tiết (`map_logic.walk_leg`, `day_route`; `schedule_logic.class_states`)
+
+Trên trang chủ, giữa hai môn hôm nay có một dòng như "8 min walk to 第四綜合大樓 (20 min break)".
+Đi bộ lâu hơn giờ nghỉ thì dòng đó chuyển đỏ: "…, but only 10 min break".
+
+1. `class_stops` nối mỗi môn với tòa nhà theo tên phòng (`match_room`).
+   Mới: hiểu mã phòng của 校務資訊系統 — phần chữ Latinh đầu là mã tòa nhà (`ROOM_CODES`:
+   `PHYS` → 物理館, `EDU` → 教育館, `GEN IV` → 第四綜合大樓...). Không có trong bảng thì thử phần chữ Hán phía sau ("綜四224").
+2. `break_minutes(a, b)` = giờ bắt đầu môn b − giờ kết thúc môn a.
+3. `walk_leg(here, there, gap)`: khoảng cách đường chim bay (công thức haversine) × `DETOUR` 1.3
+   (đường thật vòng vèo hơn) ÷ 80 m/phút, làm tròn lên. `late` = đi bộ > giờ nghỉ. Cùng tòa nhà → "Same building".
+   Nghỉ từ 60 phút (`LONG_BREAK`) thì chỉ ghi số phút đi bộ.
+4. `day_route` gắn `leg` vào bản sao của từng môn (môn cuối, môn trùng giờ, phòng không tìm thấy → không có leg).
+   `map_logic` không tự tính giờ: `app.py` truyền hàm `break_minutes` vào (mỗi file lo một việc).
+5. `class_states(classes, now)`: môn đã học xong (mờ đi), đang học ("Now"), sắp học gần nhất ("Next, in 25 min").
+
+## 19. Nhập thời khóa biểu từ 校務資訊系統 (`timetable_import.py`, `/schedule/import`)
+
+Bôi đen bảng 課表, Ctrl+C, dán vào trang Import (nút "Import from 校務資訊系統" ở trang Schedule).
+Chữ copy ra có dạng: mỗi hàng bắt đầu bằng khung giờ, các ô cách nhau bằng phím **TAB**, trong một ô mỗi thứ một dòng
+(mã môn, tên Trung + trạng thái 未亂數, phòng, tên Anh). Mẫu thật: `tests/nthu_timetable_copy.txt`.
+
+- `header_days`: hàng tiêu đề cho biết cột nào là thứ mấy (MON/TUE... hoặc 星期一...).
+- `parse_slots`: tìm các khung giờ bằng regex `08:00 -- 08:50`; chữ giữa hai khung giờ là một hàng; tách theo TAB thành ô.
+- `parse_cell`: dòng có mã môn (`11510EE 231001`), dòng kế là tên Trung (bỏ chữ trạng thái `未亂數`...), dòng bắt đầu bằng
+  chữ HOA và có số là phòng, còn lại là tên Anh. Môn 落選 / 停修 bị bỏ qua và báo cho người dùng.
+- `merge_slots`: hai tiết của cùng môn, cùng ngày, cách nhau ≤ 20 phút thì gộp (08:00–08:50 + 09:00–09:50 → 08:00–09:50).
+- Hai bước: **Preview** (chỉ đọc, chưa lưu gì) rồi **Import**. Mỗi bước Python đọc lại chữ đã dán, nên trình duyệt
+  không thể gửi lên một danh sách môn tùy ý; mỗi môn vẫn qua `validate_class` như khi thêm bằng tay.
+- Môn đã có (cùng tên, thứ, giờ) thì bỏ qua (`is_duplicate`), nên dán lại nhiều lần không bị trùng.
+  Tích "Replace my current timetable" thì xóa thời khóa biểu cũ trước (học kỳ mới). `db.add_classes` thêm tất cả trong một lần commit.
+
+## 20. Cài web như app (PWA: `pwa.py`, `static/sw.js`, `/manifest.webmanifest`, `/offline`)
+
+- **Manifest**: tên app (dịch theo ngôn ngữ), icon 192/512 px, icon "maskable" (Android cắt icon thành hình tròn nên logo
+  nằm gọn trong vùng an toàn ở giữa), `display: standalone` = mở toàn màn hình, không có thanh địa chỉ.
+  Có lối tắt (giữ lâu icon trên Android): Schedule, Calendar, Campus map.
+- **Service worker** (`/sw.js`): chạy nền trong trình duyệt. Chỉ làm một việc: mất mạng thì hiện trang `/offline`.
+  Nó **không** lưu trang có dữ liệu cá nhân. Python ghi `CACHE_VERSION` và danh sách file cần lưu vào đầu file JS;
+  file phải nằm ở gốc trang (`/sw.js`) thì mới lo được mọi trang.
+- iPhone: thẻ `apple-touch-icon` và `apple-mobile-web-app-capable` trong `base.html`.
+- **Cách cài**: Android Chrome → menu ⋮ → "Install app" / "Add to Home screen". iPhone Safari → nút Share → "Add to Home Screen".
+
 ---
 
 ## Câu hỏi TA có thể hỏi
@@ -221,6 +264,10 @@ Dùng `setdefault` để không ghi đè nếu một route đã tự đặt head
 3. **Test thế nào khi phải chờ 15 phút?** Trong test, `monkeypatch` thay `time.time` bằng một hàm trả về
    thời điểm 15 phút sau (`tests/test_login_guard.py`).
 4. **Sao "hôm nay" không dùng `date.today()`?** Vì đó là ngày của máy server (UTC), không phải Đài Loan.
+9. **Vì sao nhân 1.3 khi tính đường đi?** Khoảng cách đường chim bay ngắn hơn đường thật (đi vòng qua tòa nhà, cầu thang);
+   1.3 là hệ số ước lượng thường dùng. Kết quả chỉ là ước tính.
+10. **Dán thời khóa biểu từ trình duyệt khác thì sao?** Bộ đọc dựa vào khung giờ và phím TAB giữa các ô. Nếu không
+   tìm được môn nào, trang báo lỗi và không lưu gì (luôn có bước Preview trước khi lưu).
 7. **Clickjacking là gì, chặn thế nào?** Trang lạ nhúng web mình vào khung trong suốt đặt đè lên nút của nó,
    người dùng tưởng bấm nút kia nhưng thật ra bấm "Delete" của mình. Header `X-Frame-Options: DENY` cấm nhúng.
 8. **Đổi mật khẩu sao máy khác bị đăng xuất, khi session nằm trong cookie?** Mỗi request đều so dấu `auth` trong

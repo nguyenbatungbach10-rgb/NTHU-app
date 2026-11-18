@@ -182,6 +182,33 @@ def classes_on(classes, weekday):
                   key=lambda c: (to_minutes(c["start"]), c["id"]))
 
 
+def break_minutes(first, second):
+    """Số phút nghỉ từ lúc môn `first` kết thúc tới lúc môn `second` bắt đầu (âm nếu trùng giờ)."""
+    return to_minutes(second["start"]) - to_minutes(first["end"])
+
+
+def class_states(classes, now_minutes):
+    """Trạng thái từng môn trong ngày so với bây giờ (classes đã xếp theo giờ).
+
+    Trả về list cùng thứ tự: {"state": "done" | "now" | "next" | "later", "starts_in": phút nữa bắt đầu}.
+    "next" chỉ có một: môn sắp bắt đầu gần nhất khi hiện không có môn nào đang học.
+    """
+    states, found_next = [], False
+    busy = any(to_minutes(c["start"]) <= now_minutes < to_minutes(c["end"]) for c in classes)
+    for c in classes:
+        start, end = to_minutes(c["start"]), to_minutes(c["end"])
+        if end <= now_minutes:
+            state = "done"
+        elif start <= now_minutes:
+            state = "now"
+        elif not busy and not found_next:
+            state, found_next = "next", True
+        else:
+            state = "later"
+        states.append({"state": state, "starts_in": start - now_minutes})
+    return states
+
+
 def weekly_minutes(classes):
     """Tổng số phút học trên lớp mỗi tuần."""
     return sum(to_minutes(c["end"]) - to_minutes(c["start"]) for c in classes)

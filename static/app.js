@@ -395,3 +395,11 @@ document.querySelector("[data-theme-toggle]")?.addEventListener("click", (event)
   const dark = mode === "dark" || (mode === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
   event.currentTarget.value = dark ? "light" : "dark";
 });
+
+
+// Đăng ký service worker (static/sw.js) để web cài được như app và có trang offline.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});   // lỗi thì web vẫn chạy bình thường
+  });
+}

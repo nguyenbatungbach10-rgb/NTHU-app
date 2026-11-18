@@ -13,6 +13,11 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    quick month/year jump, /calendar/year 12-month overview;
    /schedule weekly timetable on the NTHU period grid (PERIODS 1-4, n, 5-9, a-d) with overlap
    warnings and side-by-side lanes; schedule_logic.py build_timetable + /api/classes).
+   /schedule/import: paste the 課表 table copied from 校務資訊系統 -> timetable_import.py (time rows, TAB cells,
+   header weekdays, merge periods <= 20 min apart, skip 落選/停修) -> Preview, then Import (re-parsed, validate_class,
+   duplicates skipped, optional replace). Sample: tests/nthu_timetable_copy.txt.
+   Home "Classes today": Now/Next chips (schedule_logic.class_states) and the walk to the next class
+   (map_logic.day_route/walk_leg: haversine x DETOUR 1.3 / 80 m per min; red when longer than the break).
 2. Study planning - DONE (/study page: tasks with subtasks and due dates, subjects with
    materials, study-time log; study_logic.py + /api/subjects, /api/tasks, /api/sessions).
    Open tasks with a due date are also shown (read-only) on the Calendar.
@@ -36,7 +41,7 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    and tools/upload_snapshot.py, which uploads to instance/announcements_snapshot.json via the PythonAnywhere
    files API (secrets PA_USERNAME, PA_TOKEN). load_snapshot() uses the newer of data/ and instance/ (by saved_at).
 5. Campus map - DONE (/map: MapLibre GL JS + OpenFreeMap tiles, 2D/3D toggle, search by name,
-   abbreviation or room ("Delta 205", "綜三 B101"), category filter, nearest food / bus / shop,
+   abbreviation or room ("Delta 205", "綜三 B101", course-system codes "PHYS物 019" via ROOM_CODES), category filter, nearest food / bus / shop,
    today's classes linked to buildings; map_logic.py + /api/places, /api/places/search, /api/places/<id>).
    Place data: data/nthu_osm.csv from OpenStreetMap (refresh with python tools/fetch_map_data.py).
 Accounts: sign-up / log-in / log-out with sessions. Login lockout: 5 failures per email+IP or 20 per IP
@@ -55,6 +60,8 @@ UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), 
    "today" panel (classes today + tasks due, study_logic.due_today).
 Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in templates, cookie "lang",
    Accept-Language fallback, API errors translated in after_request, JS strings via window.I18N).
+PWA: /manifest.webmanifest (pwa.py, translated), /sw.js (static/sw.js + CACHE_VERSION/OFFLINE_FILES from pwa.py;
+   only serves /offline when the network fails, never caches personal pages), icons in static/icons/.
 Themes: light / dark / auto (cookie "theme", <html data-theme>, CSS light-dark() tokens). POST /settings saves both.
 
 ## Stack
@@ -90,6 +97,8 @@ gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals
 home_logic.py           onboarding checklist, course/subject name suggestions (pure Python)
 login_guard.py          login lockout rules (pure Python)
 account_logic.py        password rules, session auth tag, remember-me length (pure Python)
+timetable_import.py     parse the timetable copied from 校務資訊系統 (pure Python)
+pwa.py                  web app manifest and offline cache list (pure Python)
 i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
@@ -111,10 +120,10 @@ GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours,
 GIAI_THICH_MAP.md       explanation of the campus map
 GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
 GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines view, offices, onboarding, lockout)
-templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error,
+templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error, schedule_import, offline,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
-static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (487 tests): logic, auth, CSRF, API, data isolation
+static/                 style.css (design tokens at the top), app.js, map.js (map page only), sw.js, icons/
+tests/                  pytest (510 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
@@ -134,5 +143,5 @@ Before deploying, set the SECRET_KEY and PRODUCTION=1 environment variables (WSG
 
 ## Conventions
 - Keep functions short, with a one-line docstring (Vietnamese or English).
-- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~56% of non-blank lines (2026-11-18, without tests).
+- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~57% of non-blank lines (2026-11-19, without tests).
 - Add a test for every new behaviour, especially security-related ones.

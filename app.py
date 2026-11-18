@@ -37,6 +37,8 @@ import home_logic
 import i18n
 import login_guard
 import map_logic
+import pwa
+import timetable_import
 from calendar_logic import (
     MAX_YEAR,
     MIN_YEAR,
@@ -67,7 +69,9 @@ from gpa_logic import (
 )
 from schedule_logic import (
     PERIODS,
+    break_minutes,
     build_timetable,
+    class_states,
     classes_on,
     validate_class,
     visible_days,
@@ -292,6 +296,15 @@ def safe_next(target):
 
 # ======================= trang chính =======================
 
+def today_route(classes):
+    """Các môn hôm nay kèm tòa nhà, đường đi tới môn kế tiếp (leg) và trạng thái so với bây giờ (state)."""
+    route = map_logic.day_route(map_logic.class_stops(classes, campus_places()[0]), break_minutes)
+    now = datetime.now(TAIWAN_TZ)
+    for stop, state in zip(route, class_states(classes, now.hour * 60 + now.minute)):
+        stop.update(state)
+    return route
+
+
 @app.route("/")
 def home():
     """Trang chủ: sự kiện sắp tới của bạn (nếu đã đăng nhập) + thông báo mới nhất."""
@@ -306,8 +319,7 @@ def home():
     today = today_tw()
     if g.user:
         upcoming = db.upcoming_events(g.user["id"], today.isoformat(), UPCOMING_ON_HOME)
-        today_classes = map_logic.class_stops(classes_on(db.list_classes(g.user["id"]), today.weekday()),
-                                              campus_places()[0])
+        today_classes = today_route(classes_on(db.list_classes(g.user["id"]), today.weekday()))
         tomorrow = (today + timedelta(days=1)).isoformat()
         due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
     steps = None
@@ -711,6 +723,49 @@ def schedule_page():
     )
 
 
+# ======================= Nhập thời khóa biểu từ 校務資訊系統 =======================
+
+def import_plan(text, names, existing):
+    """Đọc chữ đã dán -> (classes mới hợp lệ, số môn trùng, các môn bỏ qua). Python quyết định hết."""
+    found, skipped = timetable_import.parse_timetable(text, names)
+    fresh, duplicates = [], 0
+    for item in found:
+        clean, error = validate_class(item)
+        if error:
+            skipped.append(dict(item, status=error))
+        elif timetable_import.is_duplicate(clean, existing + fresh):
+            duplicates += 1
+        else:
+            fresh.append(dict(clean, code=item["code"], status=item["status"]))
+    return fresh, duplicates, skipped
+
+
+@app.route("/schedule/import", methods=["GET", "POST"])
+@login_required
+def schedule_import():
+    """Bước 1: dán chữ -> xem trước (action=preview). Bước 2: bấm Import (action=import) -> lưu."""
+    if request.method == "GET":
+        return render_template("schedule_import.html", text="", names="zh", replace=False, preview=None)
+    text = request.form.get("text", "")[:timetable_import.MAX_TEXT]
+    names = "en" if request.form.get("names") == "en" else "zh"
+    replace = request.form.get("replace") == "1"
+    existing = [] if replace else db.list_classes(g.user["id"])
+    fresh, duplicates, skipped = import_plan(text, names, existing)
+
+    if request.form.get("action") == "import" and fresh:
+        if replace:
+            db.delete_all_classes(g.user["id"])
+        db.add_classes(g.user["id"], fresh)
+        flash(_("Imported {n} classes.", n=len(fresh)))
+        return redirect(url_for("schedule_page"))
+
+    preview = {"classes": fresh, "duplicates": duplicates, "skipped": skipped,
+               "weekday_names": [i18n.weekday_long(d, current_lang()) for d in range(7)]}
+    status = 200 if fresh or duplicates else 400
+    return render_template("schedule_import.html", text=text, names=names, replace=replace,
+                           preview=preview), status
+
+
 # ======================= Thời khóa biểu tuần: API =======================
 
 @app.route("/api/classes", methods=["GET", "POST"])
@@ -987,6 +1042,36 @@ def server_error(error):
 def favicon():
     """Trình duyệt luôn hỏi /favicon.ico: chuyển sang biểu tượng SVG để không còn lỗi 404 trong console."""
     return redirect(url_for("static", filename="favicon.svg"), code=301)
+
+
+# ======================= Cài như app (PWA) =======================
+
+@app.route("/manifest.webmanifest")
+def web_manifest():
+    """Thông tin app cho trình duyệt (tên, icon, màu...), dịch theo ngôn ngữ đang chọn."""
+    response = jsonify(pwa.manifest(_, current_lang()))
+    response.mimetype = "application/manifest+json"
+    return response
+
+
+@app.route("/sw.js")
+def service_worker():
+    """Service worker phải nằm ở gốc trang (/sw.js) thì mới lo được mọi trang của web.
+    Python ghi phiên bản và danh sách file cần lưu (pwa.py) vào đầu file static/sw.js."""
+    script = os.path.join(app.static_folder, "sw.js")
+    with open(script, encoding="utf-8") as file:
+        body = file.read()
+    header = (f"const CACHE_VERSION = {json.dumps(pwa.CACHE_VERSION)};\n"
+              f"const OFFLINE_FILES = {json.dumps(pwa.OFFLINE_FILES)};\n")
+    response = app.response_class(header + body, mimetype="text/javascript")
+    response.headers["Cache-Control"] = "no-cache"   # trình duyệt luôn kiểm tra bản mới
+    return response
+
+
+@app.route("/offline")
+def offline_page():
+    """Trang hiện khi mất mạng (service worker lưu sẵn trang này)."""
+    return render_template("offline.html")
 
 
 if __name__ == "__main__":

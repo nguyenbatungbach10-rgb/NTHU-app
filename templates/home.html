@@ -16,11 +16,29 @@
       <h2>{{ _('Classes today') }}</h2>
       {% if today_classes %}
         <ul class="today-list">
+          {# Python tính sẵn: stop.state (done / now / next / later), stop.leg (đường đi tới môn kế tiếp) #}
           {% for stop in today_classes %}{% set c = stop['item'] %}
-            <li><span class="time">{{ c.start }}&ndash;{{ c.end }}</span>
+            <li class="class-row is-{{ stop.state }}"><span class="time">{{ c.start }}&ndash;{{ c.end }}</span>
                 <span class="what">{{ c.name }}{% if c.room %} <small>{{ c.room }}</small>{% endif %}
+                  {%- if stop.state == 'now' %} <span class="now-chip">{{ _('Now') }}</span>
+                  {%- elif stop.state == 'next' %} <span class="now-chip">{{ _('Next, in {n} min', n=stop.starts_in) if stop.starts_in <= 120 else _('Next') }}</span>{% endif %}
                   {%- if stop.place %} <a class="where" href="{{ url_for('map_page', place=stop.place.id) }}"
                      title="{{ _('Show {name} on the map', name=stop.place.name) }}">{{ _('Map') }}</a>{% endif %}</span></li>
+            {% set leg = stop.leg %}
+            {% if leg %}
+              <li class="leg {{ 'late' if leg.late }}">
+                <span class="leg-line" aria-hidden="true"></span>
+                {% if leg.same %}
+                  {{ _('Same building') if leg.long else _('Same building, {gap} min break', gap=leg.gap) }}
+                {% elif leg.late %}
+                  <strong>{{ _('{minutes} min walk to {place}, but only {gap} min break', minutes=leg.minutes, place=leg.place.name, gap=leg.gap) }}</strong>
+                {% elif leg.long %}
+                  {{ _('{minutes} min walk to {place}', minutes=leg.minutes, place=leg.place.name) }}
+                {% else %}
+                  {{ _('{minutes} min walk to {place} ({gap} min break)', minutes=leg.minutes, place=leg.place.name, gap=leg.gap) }}
+                {% endif %}
+              </li>
+            {% endif %}
           {% endfor %}
         </ul>
       {% else %}

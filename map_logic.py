@@ -22,6 +22,8 @@ MAIN_CAMPUS = (24.7916835, 120.9928891)   # tâm cơ sở chính (relation 36055
 MAX_DISTANCE_M = 4000                     # bỏ địa điểm xa hơn 4 km (ví dụ cơ sở Cao Hùng)
 DUPLICATE_M = 150                         # hai dòng cùng tên cách nhau dưới 150 m là một địa điểm
 WALK_M_PER_MIN = 80                       # đi bộ khoảng 80 m mỗi phút (4.8 km/h)
+DETOUR = 1.3                              # đường đi thật dài hơn đường chim bay khoảng 30% (vòng qua nhà, cầu thang)
+LONG_BREAK = 60                           # nghỉ từ 60 phút trở lên: không cần nhắc số phút nghỉ
 EARTH_RADIUS_M = 6371000
 
 # Nhóm địa điểm: (mã, tên hiển thị, màu chấm trên bản đồ)
@@ -234,11 +236,34 @@ def aliases(place):
     return result
 
 
+# Mã tòa nhà trong 校務資訊系統 (phòng ghi kiểu "PHYS物 019", "GEN IV綜四224", "EDU教 310") -> tên trên bản đồ.
+# Chỉ ghi những mã chắc chắn; mã khác vẫn có thể khớp nhờ phần chữ Hán phía sau ("綜四224" -> 綜四).
+ROOM_CODES = {
+    "delta": "台達館", "phys": "物理館", "edu": "教育館", "chem": "化學館",
+    "geni": "第一綜合大樓: 行政大樓", "genii": "第二綜合大樓", "geniii": "第三綜合大樓", "geniv": "第四綜合大樓",
+    "tsmc": "台積館", "hss": "人文社會館",
+}
+ROOM_CODE_RE = re.compile(r"^\s*([A-Za-z]+(?:\s+[IVX]+)?)")
+
+
+def _match_code(room, places):
+    """Phòng kiểu 校務資訊系統: thử mã chữ Latinh ở đầu (ROOM_CODES), rồi thử phần còn lại ("綜四224")."""
+    m = ROOM_CODE_RE.match(room or "")
+    if not m:
+        return None
+    name = ROOM_CODES.get(normalize(m[1]))
+    if name:
+        return next((p for p in places if p["name"] == name), None)
+    rest = room[m.end():]
+    return match_room(rest, places) if normalize(rest) != normalize(room) else None
+
+
 def match_room(room, places):
     """Tìm tòa nhà của một phòng học, ví dụ "Delta 205" -> 台達館. Không tìm thấy -> None.
 
     Cách làm: tên phòng (đã chuẩn hóa) phải BẮT ĐẦU bằng một tên gọi của tòa nhà; nếu nhiều tòa khớp
     thì chọn tên gọi dài nhất ("generalbuilding2" thắng "general"). Chỉ xét các tòa học.
+    Không khớp thì thử kiểu mã phòng của 校務資訊系統 (_match_code).
     """
     text = normalize(room)
     if not text:
@@ -250,7 +275,7 @@ def match_room(room, places):
         for alias in aliases(place):
             if text.startswith(alias) and len(alias) > best_len:
                 best, best_len = place, len(alias)
-    return best
+    return best or _match_code(room, places)
 
 
 # ---------- tìm kiếm ----------
@@ -342,3 +367,40 @@ def to_geojson(places):
 def class_stops(classes, places):
     """Ghép mỗi môn học với tòa nhà theo tên phòng. Trả về [{item, place}] (place có thể là None)."""
     return [{"item": c, "place": match_room(c.get("room", ""), places)} for c in classes]
+
+
+# ---------- đường đi giữa hai tiết học ----------
+
+def walk_leg(here, there, gap):
+    """Đường đi từ tòa nhà `here` sang tòa nhà `there`, khi có `gap` phút nghỉ giữa hai môn.
+
+    Trả về {place, same, meters, minutes, gap, late, long} hoặc None nếu không biết một trong hai tòa nhà.
+    late = True khi đi bộ lâu hơn thời gian nghỉ (sẽ đến muộn nếu không đi ngay).
+    long = True khi nghỉ từ LONG_BREAK phút trở lên (chỉ cần nói số phút đi bộ).
+    """
+    if here is None or there is None:
+        return None
+    leg = {"place": there, "gap": gap, "long": gap >= LONG_BREAK}
+    if here["id"] == there["id"]:
+        return dict(leg, same=True, meters=0, minutes=0, late=False)
+    meters = round(distance_m(here["lat"], here["lon"], there["lat"], there["lon"]) * DETOUR)
+    minutes = walk_minutes(meters)
+    return dict(leg, same=False, meters=meters, minutes=minutes, late=minutes > gap)
+
+
+def day_route(stops, gap_minutes):
+    """Thêm "leg" (đường đi tới môn KẾ TIẾP) vào bản sao của mỗi stop (kết quả của class_stops).
+
+    gap_minutes(a, b): số phút nghỉ giữa môn a và môn b (app.py truyền hàm của schedule_logic vào,
+    để file này không phải biết cách tính giờ). Hai môn trùng giờ (gap < 0) thì không có leg.
+    """
+    route = []
+    for i, stop in enumerate(stops):
+        leg = None
+        if i + 1 < len(stops):
+            nxt = stops[i + 1]
+            gap = gap_minutes(stop["item"], nxt["item"])
+            if gap >= 0:
+                leg = walk_leg(stop["place"], nxt["place"], gap)
+        route.append(dict(stop, leg=leg))
+    return route

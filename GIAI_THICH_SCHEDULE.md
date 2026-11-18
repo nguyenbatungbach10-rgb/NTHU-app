@@ -84,3 +84,9 @@ Mọi POST/PUT/DELETE cần CSRF token.
 - Chưa phân biệt môn chỉ học nửa kỳ hoặc tuần chẵn/lẻ.
 - Môn trong thời khóa biểu **chưa tự xuất hiện** trên lịch tháng (hai trang tách riêng).
 - Chưa tự gắn với danh sách môn trong trang GPA hoặc Study (nhập tên môn riêng ở mỗi nơi).
+
+
+## Nhập nhanh từ 校務資訊系統 và đường đi giữa hai tiết
+
+Xem `GIAI_THICH_CAITIEN.md` mục 18 (đường đi giữa hai tiết trên trang chủ) và mục 19 (trang
+"Import from 校務資訊系統": dán bảng 課表, xem trước, rồi nhập; code ở `timetable_import.py`).

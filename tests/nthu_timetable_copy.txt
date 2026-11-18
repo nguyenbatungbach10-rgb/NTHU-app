@@ -1,0 +1,80 @@
+時間\星期	星期一MON	星期二TUE	星期三WED	星期四THU	星期五FRI
+08:00 -- 08:50	11510EE 231001
+計算機程式設計未亂數
+DELTA台達217
+Introduction to Programming	11510PHYS113302
+普通物理Ｂ一未亂數
+PHYS物 019
+General Physics B (I)		11510EE 231001
+計算機程式設計未亂數
+DELTA台達217
+Introduction to Programming	11510PHYS113302
+普通物理Ｂ一未亂數
+PHYS物 019
+General Physics B (I)
+09:00 -- 09:50	11510EE 231001
+計算機程式設計未亂數
+DELTA台達217
+Introduction to Programming	11510PHYS113302
+普通物理Ｂ一未亂數
+PHYS物 019
+General Physics B (I)	11510CS 233601
+離散數學
+DELTA台達108
+Discrete Mathematics	11510EE 231001
+計算機程式設計未亂數
+DELTA台達217
+Introduction to Programming	11510PHYS113302
+普通物理Ｂ一未亂數
+PHYS物 019
+General Physics B (I)
+10:10 -- 11:00	11510CS 233601
+離散數學
+DELTA台達108
+Discrete Mathematics	11510MATH103008
+微積分Ｂ一
+GEN IV綜四224
+Calculus I		11510MATH103008
+微積分Ｂ一
+GEN IV綜四224
+Calculus I	
+11:10 -- 12:00	11510CS 233601
+離散數學
+DELTA台達108
+Discrete Mathematics	11510MATH103008
+微積分Ｂ一
+GEN IV綜四224
+Calculus I			
+12:10 -- 13:00					
+13:20 -- 14:10	11510CLC 100101
+初級華語一未亂數
+GEN II綜二110
+Mandarin Basic I	11510IBP 105200
+新生探索課程
+DELTA台達102
+First Year Seminar : Exploratory Studies	11510CLC 100101
+初級華語一未亂數
+GEN II綜二110
+Mandarin Basic I		11510PE 111025
+大一體育
+Physical Education
+14:20 -- 15:10	11510CLC 100101
+初級華語一未亂數
+GEN II綜二110
+Mandarin Basic I	11510IBP 105200
+新生探索課程
+DELTA台達102
+First Year Seminar : Exploratory Studies	11510CLC 100101
+初級華語一未亂數
+GEN II綜二110
+Mandarin Basic I		11510PE 111025
+大一體育
+Physical Education
+15:30 -- 16:20			11510GE 144100
+致命優雅: 自然界毒物之迷思、醫學與奧秘未亂數
+EDU教 310
+Deadly Elegance: Myths, Medicine and Wonders of Poisons from Nature		
+16:30 -- 17:20			11510GE 144100
+致命優雅: 自然界毒物之迷思、醫學與奧秘未亂數
+EDU教 310
+Deadly Elegance: Myths, Medicine and Wonders of Poisons from Nature		

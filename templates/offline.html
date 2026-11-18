@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ _('You are offline') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
+{% block content %}
+{# Service worker (static/sw.js) lưu sẵn trang này và hiện nó khi mất mạng #}
+<section class="error-page">
+  <h1>{{ _('You are offline') }}</h1>
+  <p>{{ _('Check your Wi-Fi or mobile data, then try again.') }}</p>
+  <a class="btn" href="{{ url_for('home') }}">{{ _('Try again') }}</a>
+</section>
+{% endblock %}

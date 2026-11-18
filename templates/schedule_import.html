@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Import timetable') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
+
+{% block content %}
+<div class="import">
+  <p class="back"><a href="{{ url_for('schedule_page') }}">&larr; {{ _('Weekly schedule') }}</a></p>
+  <h1>{{ _('Import timetable') }}</h1>
+  <ol class="import-steps">
+    <li>{{ _('Open your timetable (課表) in 校務資訊系統 on a computer.') }}</li>
+    <li>{{ _('Select the whole table with the mouse and copy it (Ctrl+C).') }}</li>
+    <li>{{ _('Paste it below and press Preview. Nothing is saved until you press Import.') }}</li>
+  </ol>
+
+  {# Cả 2 nút gửi CÙNG một form: Python đọc lại chữ đã dán ở mỗi bước (timetable_import.py) #}
+  <form class="form-card import-form" method="post" action="{{ url_for('schedule_import') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="text">{{ _('Copied timetable') }}</label>
+      <textarea id="text" name="text" rows="{{ 4 if preview else 10 }}" required
+                placeholder="08:00 -- 08:50&#9;11510EE 231001 ...">{{ text }}</textarea>
+    </div>
+    <div class="import-options">
+      <span class="setting-name">{{ _('Course names') }}</span>
+      <span class="seg small" role="radiogroup" aria-label="{{ _('Course names') }}">
+        <label class="seg-btn"><input type="radio" name="names" value="zh" {{ 'checked' if names == 'zh' }}> 中文</label>
+        <label class="seg-btn"><input type="radio" name="names" value="en" {{ 'checked' if names == 'en' }}> English</label>
+      </span>
+    </div>
+    <label class="check-row">
+      <input type="checkbox" name="replace" value="1" {{ 'checked' if replace }}>
+      <span>{{ _('Replace my current timetable') }} <small>{{ _('(for a new semester)') }}</small></span>
+    </label>
+    <div class="import-actions">
+      <button class="btn {{ 'ghost' if preview and preview.classes }}" type="submit" name="action" value="preview">{{ _('Preview') }}</button>
+      {% if preview and preview.classes %}
+        <button class="btn" type="submit" name="action" value="import">{{ _('Import {n} classes', n=preview.classes | length) }}</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if preview %}
+    <section class="import-result" aria-live="polite">
+      {% if preview.classes %}
+        <h2>{{ _('{n} classes found', n=preview.classes | length) }}</h2>
+        <ul class="agenda">
+          {% for c in preview.classes %}
+            <li class="row no-tile">
+              <div class="row-main">
+                <span class="row-title">{{ c.name }}</span>
+                <span class="row-meta">{{ preview.weekday_names[c.weekday] }} &middot; {{ c.start }}&ndash;{{ c.end }}{% if c.room %} &middot; {{ c.room }}{% endif %}</span>
+              </div>
+              {% if c.status %}<div class="row-side"><span class="row-when" title="{{ _('Course selection status') }}">{{ c.status }}</span></div>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if preview.duplicates %}
+        <p class="form-note">{{ _('{n} classes are already in your timetable and will be skipped.', n=preview.duplicates) }}</p>
+      {% endif %}
+      {% if preview.skipped %}
+        <p class="form-note">{{ _('Skipped:') }}
+          {% for c in preview.skipped %}{{ c.name }} ({{ c.status }}){{ ', ' if not loop.last }}{% endfor %}</p>
+      {% endif %}
+      {% if not preview.classes and not preview.duplicates %}
+        <div class="flash error" role="alert">{{ _('No classes found. Copy the whole table, including the time column (08:00 -- 08:50).') }}</div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
