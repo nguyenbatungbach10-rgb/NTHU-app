@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Account') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
+
+{% block content %}
+<div class="account">
+  <h1>{{ _('Account') }}</h1>
+  <p class="account-who">{{ current_user.email }}
+    {% if current_user.created_at %}<small>{{ _('Member since {date}', date=current_user.created_at[:10]) }}</small>{% endif %}</p>
+
+  {# Đổi mật khẩu: phải nhập mật khẩu hiện tại (người mượn máy đang mở sẵn web cũng không đổi được) #}
+  <form class="form-card" method="post" action="{{ url_for('change_password') }}">
+    <h2>{{ _('Change password') }}</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="current_password">{{ _('Current password') }}</label>
+      <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="new_password">{{ _('New password') }} <small>{{ _('(at least 8 characters)') }}</small></label>
+      <input id="new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
+    </div>
+    <div class="field">
+      <label for="confirm">{{ _('Confirm new password') }}</label>
+      <input id="confirm" name="confirm" type="password" minlength="8" autocomplete="new-password" required>
+    </div>
+    <button class="btn" type="submit">{{ _('Change password') }}</button>
+    <p class="form-note">{{ _('Other devices where you are logged in will be logged out.') }}</p>
+  </form>
+
+  {# Xóa tài khoản: cần mật khẩu + ô xác nhận; xóa luôn mọi dữ liệu (ON DELETE CASCADE trong db.py) #}
+  <form class="form-card danger-zone" method="post" action="{{ url_for('delete_account') }}">
+    <h2>{{ _('Delete account') }}</h2>
+    <p>{{ _('This deletes your account and everything in it: calendar events, timetable, courses, GPA goals, subjects, tasks and study log. It cannot be undone.') }}</p>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="delete_password">{{ _('Current password') }}</label>
+      <input id="delete_password" name="current_password" type="password" autocomplete="current-password" required>
+    </div>
+    <label class="check-row">
+      <input type="checkbox" name="confirm_delete" value="1" required>
+      <span>{{ _('I understand that my data will be deleted for good.') }}</span>
+    </label>
+    <button class="btn danger" type="submit">{{ _('Delete my account') }}</button>
+  </form>
+</div>
+{% endblock %}

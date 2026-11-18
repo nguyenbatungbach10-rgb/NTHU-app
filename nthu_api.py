@@ -29,7 +29,7 @@ import json
 import math
 import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import requests
@@ -253,6 +253,21 @@ def fetch_announcements():
     if saved:
         return _remember(saved, {"kind": "snapshot", "saved_at": saved_at, "reason": reason}, now)
     return _remember(SAMPLE_ANNOUNCEMENTS, {"kind": "sample", "reason": reason}, now)
+
+
+STALE_HOURS = 48   # bản lưu cũ hơn 2 ngày = việc tự cập nhật (GitHub Actions) có vấn đề -> hiện cảnh báo vàng
+
+
+def is_stale(saved_at, now, hours=STALE_HOURS):
+    """True nếu bản lưu ghi lúc `saved_at` ("2026-11-19 06:17", giờ Đài Loan) đã cũ hơn `hours` giờ.
+
+    now: datetime giờ Đài Loan, không kèm múi giờ. Không đọc được saved_at -> coi là cũ.
+    """
+    try:
+        saved = datetime.strptime(saved_at or "", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return True
+    return now - saved > timedelta(hours=hours)
 
 
 def is_sample(notice):

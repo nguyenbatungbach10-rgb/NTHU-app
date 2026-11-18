@@ -41,7 +41,13 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    Place data: data/nthu_osm.csv from OpenStreetMap (refresh with python tools/fetch_map_data.py).
 Accounts: sign-up / log-in / log-out with sessions. Login lockout: 5 failures per email+IP or 20 per IP
    in 15 minutes -> 429 (login_guard.py decides, db.login_failures stores). PRODUCTION=1 env var ->
-   Secure cookies + ProxyFix (real client IP on PythonAnywhere).
+   Secure cookies + ProxyFix (real client IP on PythonAnywhere) + HSTS.
+   "Remember me" checkbox -> session.permanent (30 days). /account: change password (current password required)
+   and delete account (password + tick box; ON DELETE CASCADE). Sessions carry auth = account_logic.auth_tag
+   (HMAC of the password hash); a mismatch logs the session out, so changing the password logs out other devices.
+   g.user never contains password_hash (kept in g.password_hash).
+Security headers on every response (app.SECURITY_HEADERS): X-Frame-Options DENY, CSP frame-ancestors 'none',
+   nosniff, Referrer-Policy. Snapshot notice: quiet "Updated ..." line unless older than nthu_api.STALE_HOURS (48).
 Dates: "today" is always calendar_logic.today_tw() (Asia/Taipei, UTC+8); never date.today().
 Errors: 404/500 -> templates/error.html (JSON for /api/). Home: one-line onboarding strip (home_logic.py, Hide -> cookie "onboarding"),
    name suggestions <datalist> on GPA/Study.
@@ -83,6 +89,7 @@ study_logic.py          validate subject/task/session, task tree, week totals (p
 gpa_logic.py            GPA maths, grade scale, validate_course / validate_goals (pure Python)
 home_logic.py           onboarding checklist, course/subject name suggestions (pure Python)
 login_guard.py          login lockout rules (pure Python)
+account_logic.py        password rules, session auth tag, remember-me length (pure Python)
 i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
@@ -104,10 +111,10 @@ GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours,
 GIAI_THICH_MAP.md       explanation of the campus map
 GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
 GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines view, offices, onboarding, lockout)
-templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, error,
+templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (474 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (487 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

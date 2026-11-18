@@ -20,6 +20,11 @@
     <input id="confirm" name="confirm" type="password" minlength="8" required>
   </div>
 
+  <label class="check-row">
+    <input type="checkbox" name="remember" value="1">
+    <span>{{ _('Keep me logged in for 30 days') }} <small>{{ _('(not on shared computers)') }}</small></span>
+  </label>
+
   <button class="btn" type="submit">{{ _('Sign up') }}</button>
   <p class="form-note">{{ _('Already have an account?') }} <a href="{{ url_for('login') }}">{{ _('Log in') }}</a></p>
 </form>

@@ -90,7 +90,8 @@
           </form>
           <div class="menu-user">
             {% if current_user %}
-              <span class="menu-email" title="{{ current_user.email }}">{{ current_user.email }}</span>
+              <a class="menu-email" href="{{ url_for('account_page') }}" title="{{ _('Account') }}: {{ current_user.email }}"
+                 {% if request.endpoint == 'account_page' %}aria-current="page"{% endif %}>{{ current_user.email }}</a>
               <form class="inline" method="post" action="{{ url_for('logout') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn small ghost" type="submit">{{ _('Log out') }}</button>

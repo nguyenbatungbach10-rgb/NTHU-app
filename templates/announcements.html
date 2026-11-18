@@ -14,8 +14,11 @@
   {% endfor %}
 </nav>
 
-{# notice do nthu_api.fetch_announcements() trả về: None = dữ liệu trực tiếp #}
-{% if notice %}
+{# notice do nthu_api.fetch_announcements() trả về: None = dữ liệu trực tiếp.
+   Bản lưu còn mới (GitHub cập nhật mỗi ngày) -> chỉ một dòng chữ nhỏ; cũ hơn 2 ngày (stale) -> cảnh báo vàng #}
+{% if notice and notice.kind == 'snapshot' and not stale %}
+  <p class="saved-note">{{ _('Updated {date}', date=notice.saved_at) }}</p>
+{% elif notice %}
   <div class="alert">
     {% if notice.kind == 'snapshot' %}
       {{ _('Live data is not available right now. Showing announcements saved on {date}.', date=notice.saved_at) }}

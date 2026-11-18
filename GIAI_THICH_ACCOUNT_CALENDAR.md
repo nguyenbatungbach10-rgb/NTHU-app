@@ -101,7 +101,8 @@ Nút lưu vào ngày đọc được từ tiêu đề (xem `GIAI_THICH_DEADLINE.
 
 ## 8. Hạn chế đã biết (nói thật với TA)
 
-- Đã giới hạn đăng nhập sai (5 lần / 15 phút, xem `GIAI_THICH_CAITIEN.md`), nhưng chưa có quên mật khẩu hay xác minh email.
+- Đã giới hạn đăng nhập sai (5 lần / 15 phút), có "Remember me", đổi mật khẩu và xóa tài khoản
+  (xem `GIAI_THICH_CAITIEN.md`), nhưng chưa có quên mật khẩu hay xác minh email (cần gửi email).
 - `SECRET_KEY` mặc định chỉ dùng để phát triển. Khi deploy phải đặt biến môi trường `SECRET_KEY`, bật Force HTTPS và đặt `PRODUCTION=1` (cookie có cờ Secure).
 - SQLite là một file, hợp với dự án học tập và ít người dùng, không hợp tải lớn hay nhiều máy chủ.
 - "Hôm nay" tính theo giờ Đài Loan (`today_tw()`), không theo giờ máy server.

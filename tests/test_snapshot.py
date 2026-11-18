@@ -114,17 +114,34 @@ def test_is_sample():
 SNAP_NOTICE = {"kind": "snapshot", "saved_at": "2026-11-18 11:40", "reason": "Could not reach the NTHU Data API."}
 
 
+def set_stale(monkeypatch, stale):
+    """Cố định "bản lưu cũ hay mới" để test không phụ thuộc ngày giờ lúc chạy."""
+    monkeypatch.setattr(app_module, "is_stale", lambda saved_at, now: stale)
+
+
 def test_home_shows_snapshot_items_with_date(app, monkeypatch):
     items = nthu_api.normalize(API_DATA)
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, SNAP_NOTICE))
+    set_stale(monkeypatch, False)
     html = app.test_client().get("/").get_data(as_text=True)
-    assert "獎學金申請公告" in html and "Saved on 2026-11-18 11:40" in html
+    assert "獎學金申請公告" in html and "Updated 2026-11-18 11:40" in html and "saved-note stale" not in html
     assert "unavailable right now" not in html
+    set_stale(monkeypatch, True)
+    assert "saved-note stale" in app.test_client().get("/").get_data(as_text=True)
+
+
+def test_fresh_snapshot_shows_quiet_note_not_alert(app, monkeypatch):
+    items = nthu_api.normalize(API_DATA)
+    monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, SNAP_NOTICE))
+    set_stale(monkeypatch, False)
+    html = app.test_client().get("/announcements").get_data(as_text=True)
+    assert "Updated 2026-11-18 11:40" in html and 'class="alert"' not in html
 
 
 def test_announcements_page_snapshot_and_sample_messages(app, monkeypatch):
     items = nthu_api.normalize(API_DATA)
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, SNAP_NOTICE))
+    set_stale(monkeypatch, True)                         # cũ hơn 2 ngày -> cảnh báo vàng
     html = app.test_client().get("/announcements").get_data(as_text=True)
     assert "Showing announcements saved on 2026-11-18 11:40" in html and "sample data" not in html
     monkeypatch.setattr(app_module, "fetch_announcements",
@@ -136,9 +153,20 @@ def test_announcements_page_snapshot_and_sample_messages(app, monkeypatch):
 def test_snapshot_message_in_chinese(app, monkeypatch):
     items = nthu_api.normalize(API_DATA)
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (items, SNAP_NOTICE))
+    set_stale(monkeypatch, True)
     client = app.test_client()
     html = client.get("/announcements", headers={"Accept-Language": "zh-TW"}).get_data(as_text=True)
     assert "顯示 2026-11-18 11:40 儲存的公告" in html
+    set_stale(monkeypatch, False)
+    assert "更新於 2026-11-18 11:40" in client.get("/announcements", headers={"Accept-Language": "zh-TW"}).get_data(as_text=True)
+
+
+def test_is_stale():
+    from datetime import datetime as dt
+    now = dt(2026, 11, 20, 12, 0)
+    assert not nthu_api.is_stale("2026-11-19 06:17", now)        # 30 tiếng
+    assert nthu_api.is_stale("2026-11-18 11:00", now)            # hơn 48 tiếng
+    assert nthu_api.is_stale("", now) and nthu_api.is_stale(None, now) and nthu_api.is_stale("hôm qua", now)
 
 
 def test_save_script_writes_valid_snapshot(fresh, monkeypatch):

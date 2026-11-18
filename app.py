@@ -14,7 +14,7 @@ import re
 import secrets
 import sqlite3
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import lru_cache, wraps
 
 from flask import (
@@ -31,6 +31,7 @@ from flask import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import account_logic
 import db
 import home_logic
 import i18n
@@ -39,6 +40,7 @@ import map_logic
 from calendar_logic import (
     MAX_YEAR,
     MIN_YEAR,
+    TAIWAN_TZ,
     WEEKDAYS,
     build_month,
     mark_saved,
@@ -82,6 +84,7 @@ from study_logic import (
     week_bounds,
 )
 from nthu_api import (
+    is_stale,
     category_counts,
     GROUP_PREFIX,
     group_offices,
@@ -98,6 +101,8 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
 app.config["DATABASE"] = os.path.join(app.instance_path, "app.db")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"  # cookie không gửi kèm request từ trang web khác
+# "Remember me": phiên "permanent" sống 30 ngày (Flask gia hạn mỗi lần mở web); không chọn thì hết khi đóng trình duyệt
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=account_logic.REMEMBER_DAYS)
 
 # Trên server thật (PythonAnywhere) đặt biến môi trường PRODUCTION=1 trong file WSGI. Khi đó:
 #   - cookie chỉ gửi qua HTTPS (Secure), kẻ nghe lén Wi-Fi không lấy được phiên đăng nhập
@@ -145,7 +150,14 @@ def load_user_and_check_csrf():
     g.user = None
     user_id = session.get("user_id")
     if user_id is not None:
-        g.user = db.get_user(user_id)
+        user = db.get_user(user_id)
+        # Phiên phải mang đúng "dấu" của mật khẩu hiện tại: đổi mật khẩu hoặc xóa tài khoản
+        # thì các phiên cũ (trên máy khác) không còn khớp -> bị đăng xuất
+        if user is None or not account_logic.same_tag(session.get("auth"), auth_tag(user)):
+            session.clear()
+        else:
+            g.password_hash = user.pop("password_hash")   # template chỉ thấy id, email, created_at
+            g.user = user
 
     # Request làm thay đổi dữ liệu phải mang đúng token (form: trường csrf_token;
     # fetch: header X-CSRF-Token). Trang web lạ không biết token nên không giả mạo được.
@@ -201,6 +213,29 @@ def translate_api_errors(response):
     return response
 
 
+# Header bảo mật gắn vào MỌI trang:
+#   X-Frame-Options / frame-ancestors: trang lạ không được nhúng web mình vào <iframe> (chống clickjacking:
+#       nhúng ẩn rồi lừa người dùng bấm nút "Delete" của mình)
+#   X-Content-Type-Options: trình duyệt không được tự đoán loại file (chống chạy file tải lên như script)
+#   Referrer-Policy: khi bấm link sang trang khác, chỉ gửi tên miền, không gửi đường dẫn đầy đủ (có thể chứa ?q=...)
+SECURITY_HEADERS = {
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+@app.after_request
+def add_security_headers(response):
+    """Gắn SECURITY_HEADERS; trên server thật (HTTPS) thêm HSTS: trình duyệt nhớ luôn dùng HTTPS 1 năm."""
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if PRODUCTION and request.is_secure:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
+
+
 @app.route("/settings", methods=["POST"])
 def settings():
     """Lưu ngôn ngữ và/hoặc giao diện vào cookie (1 năm), rồi quay lại trang cũ. Cần CSRF như mọi POST."""
@@ -226,6 +261,26 @@ def login_required(view):
             return redirect(url_for("login", next=request.full_path.rstrip("?")))
         return view(*args, **kwargs)
     return wrapped
+
+
+def auth_tag(user):
+    """Dấu của mật khẩu hiện tại của user (xem account_logic.auth_tag)."""
+    return account_logic.auth_tag(app.config["SECRET_KEY"], user["password_hash"])
+
+
+def start_session(user, remember):
+    """Đăng nhập: phiên mới (chống session fixation), lưu user_id và dấu mật khẩu."""
+    session.clear()
+    session["user_id"] = user["id"]
+    session["auth"] = auth_tag(user)
+    session.permanent = bool(remember)   # True = giữ đăng nhập REMEMBER_DAYS ngày
+
+
+def notice_is_stale(notice):
+    """True nếu đang dùng bản lưu đã cũ quá nthu_api.STALE_HOURS giờ (lúc đó mới hiện cảnh báo vàng)."""
+    if not notice or notice.get("kind") != "snapshot":
+        return False
+    return is_stale(notice.get("saved_at"), datetime.now(TAIWAN_TZ).replace(tzinfo=None))
 
 
 def safe_next(target):
@@ -264,6 +319,7 @@ def home():
         for step in steps["steps"]:
             step["url"] = targets[step["target"]]
     return render_template("home.html", latest=latest, upcoming=upcoming, notice=notice, soon=soon, onboarding=steps,
+                           stale=notice_is_stale(notice),
                            today=today, today_classes=today_classes, due_tasks=due)
 
 
@@ -308,6 +364,7 @@ def announcements():
         view=view,
         deadline_days=DEADLINE_DAYS,
         notice=notice,
+        stale=notice_is_stale(notice),
     )
 
 
@@ -343,10 +400,8 @@ def signup():
         user_id = None
         if not EMAIL_RE.match(email) or len(email) > 254:
             error = "Please enter a valid email address."
-        elif not 8 <= len(password) <= 128:
-            error = "Password must be 8 to 128 characters."
-        elif password != confirm:
-            error = "Passwords do not match."
+        elif account_logic.password_error(password, confirm):
+            error = account_logic.password_error(password, confirm)
         else:
             try:
                 # Chỉ lưu bản BĂM của mật khẩu, không bao giờ lưu mật khẩu gốc
@@ -355,8 +410,7 @@ def signup():
                 error = "That email is already registered."
 
         if error is None:
-            session.clear()                # phiên mới sau khi đăng nhập (chống session fixation)
-            session["user_id"] = user_id
+            start_session(db.get_user(user_id), request.form.get("remember") == "1")
             flash("Welcome! Your account is ready.")
             return redirect(url_for("home"))
 
@@ -386,8 +440,7 @@ def login():
             flash("Invalid email or password.", "error")
             return render_template("login.html", email=email, next_url=next_url), 401
         db.clear_login_failures(email, ip)
-        session.clear()
-        session["user_id"] = user["id"]
+        start_session(user, request.form.get("remember") == "1")
         return redirect(safe_next(next_url))
     return render_template("login.html", email="", next_url=next_url)
 
@@ -400,6 +453,54 @@ def hide_onboarding():
     response.set_cookie("onboarding", "hidden", max_age=365 * 24 * 3600, samesite="Lax", httponly=True,
                         secure=app.config["SESSION_COOKIE_SECURE"])
     return response
+
+
+# ======================= Tài khoản: đổi mật khẩu, xóa tài khoản =======================
+
+@app.route("/account")
+@login_required
+def account_page():
+    """Trang Account: thông tin, đổi mật khẩu, xóa tài khoản."""
+    return render_template("account.html")
+
+
+def current_password_ok():
+    """Mật khẩu hiện tại gửi trong form có đúng không (bắt buộc trước khi đổi mật khẩu / xóa tài khoản)."""
+    return check_password_hash(g.password_hash, request.form.get("current_password", ""))
+
+
+@app.route("/account/password", methods=["POST"])
+@login_required
+def change_password():
+    """Đổi mật khẩu. Máy này vẫn đăng nhập; các máy khác bị đăng xuất (dấu mật khẩu đổi)."""
+    new, confirm = request.form.get("new_password", ""), request.form.get("confirm", "")
+    error = None if current_password_ok() else "Your current password is wrong."
+    error = error or account_logic.password_error(new, confirm)
+    if error:
+        flash(error, "error")
+        return render_template("account.html"), 400
+    new_hash = generate_password_hash(new)
+    db.update_password(g.user["id"], new_hash)
+    remember = session.permanent
+    start_session({"id": g.user["id"], "password_hash": new_hash}, remember)
+    flash("Your password has been changed. Other devices have been logged out.")
+    return redirect(url_for("account_page"))
+
+
+@app.route("/account/delete", methods=["POST"])
+@login_required
+def delete_account():
+    """Xóa tài khoản và TOÀN BỘ dữ liệu (ON DELETE CASCADE). Cần mật khẩu và ô xác nhận."""
+    if not current_password_ok():
+        flash("Your current password is wrong.", "error")
+        return render_template("account.html"), 400
+    if request.form.get("confirm_delete") != "1":
+        flash("Tick the box to confirm that you want to delete your account.", "error")
+        return render_template("account.html"), 400
+    db.delete_user(g.user["id"])
+    session.clear()
+    flash("Your account and all your data have been deleted.")
+    return redirect(url_for("home"))
 
 
 @app.route("/logout", methods=["POST"])

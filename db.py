@@ -189,10 +189,26 @@ def clear_login_failures(email, ip):
 
 
 def get_user(user_id):
+    """Người dùng KÈM bản băm mật khẩu (app.py dùng để kiểm tra phiên và mật khẩu cũ, không đưa ra template)."""
     row = get_db().execute(
-        "SELECT id, email FROM users WHERE id = ?", (user_id,)
+        "SELECT id, email, password_hash, created_at FROM users WHERE id = ?", (user_id,)
     ).fetchone()
     return dict(row) if row else None
+
+
+def update_password(user_id, password_hash):
+    """Đổi mật khẩu (lưu bản băm mới)."""
+    conn = get_db()
+    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+    conn.commit()
+
+
+def delete_user(user_id):
+    """Xóa tài khoản. Mọi bảng khác có "REFERENCES users(id) ON DELETE CASCADE"
+    (và PRAGMA foreign_keys = ON trong get_db), nên sự kiện, lớp học, môn, việc học... bị xóa theo."""
+    conn = get_db()
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
 
 
 # ---------- events ----------

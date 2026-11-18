@@ -144,7 +144,7 @@
     <a href="{{ url_for('announcements') }}">{{ _('View all') }}</a>
   </div>
   {% if notice and notice.kind == 'snapshot' %}
-    <p class="saved-note">{{ _('Saved on {date}', date=notice.saved_at) }}</p>
+    <p class="saved-note {{ 'stale' if stale }}">{{ _('Updated {date}', date=notice.saved_at) }}</p>
   {% endif %}
   {% if latest %}
     <ul class="agenda">

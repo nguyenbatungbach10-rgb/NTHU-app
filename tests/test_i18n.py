@@ -42,6 +42,8 @@ DYNAMIC_KEYS = {
     "Passwords do not match.", "That email is already registered.", "No subject",
     "Main campus", "Nanda campus",
     "All announcements", "Deadlines", "Talks & events",
+    "Your account and all your data have been deleted.", "Tick the box to confirm that you want to delete your account.",
+    "Your password has been changed. Other devices have been logged out.", "Your current password is wrong.",
     "{label}: {name}, {meters} m (about {minutes} min walk)", "Walking directions in Google Maps", "{n} floors",
 } | {label for _, label, _ in map_logic.CATEGORIES} | {label for _, label, _ in home_logic.STEPS}
 

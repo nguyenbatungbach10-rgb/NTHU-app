@@ -165,6 +165,51 @@ Web (nthu_api.load_snapshot)
 **Lưu ý:** với repo công khai, GitHub tự tắt lịch chạy nếu repo không có commit nào trong 60 ngày.
 Khi đó vào tab Actions bấm bật lại (Enable workflow).
 
+## 14. Dòng "Updated" thay cho khung cảnh báo vàng (`nthu_api.is_stale`)
+
+Từ khi GitHub tự cập nhật mỗi ngày, bản lưu thường chỉ cũ vài tiếng, nên khung vàng "Live data is not available"
+làm người dùng tưởng web lỗi. Giờ:
+- Bản lưu cũ **dưới 48 giờ** (`STALE_HOURS`): chỉ một dòng chữ xám "Updated 2026-11-19 06:17".
+- Cũ **hơn 48 giờ**: hiện lại khung vàng (nghĩa là việc tự cập nhật bị hỏng, cần xem tab Actions trên GitHub).
+- `is_stale(saved_at, now)` đọc chuỗi "YYYY-MM-DD HH:MM" bằng `datetime.strptime`; đọc không được thì coi là cũ.
+- `app.notice_is_stale()` gọi hàm này với giờ Đài Loan rồi truyền `stale` cho template.
+
+## 15. Header bảo mật (`app.add_security_headers`)
+
+`@app.after_request` gắn vào **mọi** câu trả lời:
+
+| Header | Tác dụng |
+|---|---|
+| `X-Frame-Options: DENY` và `Content-Security-Policy: frame-ancestors 'none'` | Trang lạ không nhúng được web mình vào `<iframe>` → chống **clickjacking** (nhúng ẩn web mình rồi lừa người dùng bấm "Delete my account") |
+| `X-Content-Type-Options: nosniff` | Trình duyệt không tự "đoán" loại file, không chạy nhầm một file thường như script |
+| `Referrer-Policy: strict-origin-when-cross-origin` | Bấm link sang trang khác chỉ gửi tên miền, không gửi cả đường dẫn (có thể chứa từ khóa tìm kiếm) |
+| `Strict-Transport-Security` (chỉ khi `PRODUCTION=1` và đang dùng HTTPS) | Trình duyệt nhớ 1 năm: luôn vào web bằng HTTPS |
+
+Dùng `setdefault` để không ghi đè nếu một route đã tự đặt header đó.
+
+## 16. "Remember me" (`account_logic.REMEMBER_DAYS`, `app.start_session`)
+
+- Mặc định phiên đăng nhập là cookie **không có ngày hết hạn**: trình duyệt xóa khi đóng → phải đăng nhập lại.
+- Tích ô "Keep me logged in for 30 days" → `session.permanent = True`; Flask đặt ngày hết hạn
+  `PERMANENT_SESSION_LIFETIME` = 30 ngày và **gia hạn mỗi lần mở web**.
+- Có ở cả trang Log in và Sign up. Chữ nhỏ nhắc không tích trên máy dùng chung.
+
+## 17. Trang Account: đổi mật khẩu, xóa tài khoản (`/account`, `account_logic.py`)
+
+- Link: bấm vào email của bạn trong menu.
+- **Đổi mật khẩu** (`POST /account/password`): phải nhập **mật khẩu hiện tại** (người mượn máy đang mở sẵn web
+  cũng không đổi được), mật khẩu mới theo cùng luật với Sign up (`password_error`, 8–128 ký tự, nhập lại phải khớp).
+- **Đổi xong thì các máy khác bị đăng xuất**: khi đăng nhập, phiên lưu `auth` = 16 ký tự HMAC của bản băm mật khẩu
+  (`auth_tag`). Mỗi request, `load_user_and_check_csrf` so dấu này với mật khẩu hiện tại; đổi mật khẩu → dấu khác →
+  phiên cũ bị xóa. Máy vừa đổi được cấp dấu mới nên vẫn đăng nhập.
+  Vì sao không lưu thẳng bản băm? Cookie phiên của Flask được **ký** (không sửa được) nhưng **không mã hóa**
+  (ai cầm cookie cũng đọc được), nên chỉ lưu một dấu không đoán ngược được.
+- **Xóa tài khoản** (`POST /account/delete`): cần mật khẩu + tích ô xác nhận. `db.delete_user` chỉ xóa dòng trong
+  `users`; các bảng khác có `ON DELETE CASCADE` nên sự kiện, lớp học, môn, việc học... của bạn bị xóa theo,
+  dữ liệu người khác không bị đụng (có test kiểm tra).
+- Template không bao giờ thấy bản băm mật khẩu: `g.password_hash` tách riêng khỏi `g.user`.
+- Lần đầu cập nhật bản này lên server, mọi người đang đăng nhập sẽ bị đăng xuất một lần (phiên cũ chưa có dấu `auth`).
+
 ---
 
 ## Câu hỏi TA có thể hỏi
@@ -176,6 +221,10 @@ Khi đó vào tab Actions bấm bật lại (Enable workflow).
 3. **Test thế nào khi phải chờ 15 phút?** Trong test, `monkeypatch` thay `time.time` bằng một hàm trả về
    thời điểm 15 phút sau (`tests/test_login_guard.py`).
 4. **Sao "hôm nay" không dùng `date.today()`?** Vì đó là ngày của máy server (UTC), không phải Đài Loan.
+7. **Clickjacking là gì, chặn thế nào?** Trang lạ nhúng web mình vào khung trong suốt đặt đè lên nút của nó,
+   người dùng tưởng bấm nút kia nhưng thật ra bấm "Delete" của mình. Header `X-Frame-Options: DENY` cấm nhúng.
+8. **Đổi mật khẩu sao máy khác bị đăng xuất, khi session nằm trong cookie?** Mỗi request đều so dấu `auth` trong
+   phiên với mật khẩu hiện tại trong database (xem mục 17).
 6. **Sao không để server tự gọi API?** Gói miễn phí chặn api.nthusa.tw. Máy của GitHub thì gọi được, nên
    GitHub tải về rồi gửi file sang; web chỉ việc đọc file.
 5. **Macro trong Jinja là gì?** Giống hàm Python: định nghĩa một lần (`{% macro dated_row(item) %}`),
