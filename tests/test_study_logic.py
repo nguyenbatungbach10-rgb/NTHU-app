@@ -129,3 +129,27 @@ def test_validate_session():
                 {"date": "2026-11-18", "minutes": 5, "note": "n" * 301}]:
         assert s.validate_session(bad)[0] is None, bad
     assert s.validate_session({"date": "2026-11-18", "minutes": 1440})[1] is None
+
+
+# ---------- due_today (trang chủ) ----------
+from study_logic import due_today  # noqa: E402
+
+
+def _t(id, due, done=False, parent=None, title="t"):
+    return {"id": id, "due_date": due, "done": done, "parent_id": parent, "title": title}
+
+
+def test_due_today_keeps_open_main_tasks_due_today_or_earlier():
+    tasks = [_t(1, "2026-11-18"), _t(2, "2026-11-10"), _t(3, "2026-11-19"), _t(4, ""),
+             _t(5, "2026-11-18", done=True), _t(6, "2026-11-18", parent=1)]
+    result = due_today(tasks, "2026-11-18")
+    assert [t["id"] for t in result] == [2, 1]          # cũ nhất trước; bỏ việc tương lai, không hạn, đã xong, việc con
+    assert [t["overdue"] for t in result] == [True, False]
+
+
+def test_due_today_limit_and_copies():
+    tasks = [_t(i, "2026-11-01") for i in range(1, 9)]
+    result = due_today(tasks, "2026-11-18", limit=3)
+    assert [t["id"] for t in result] == [1, 2, 3]
+    assert "overdue" not in tasks[0]                      # không sửa dữ liệu gốc
+    assert due_today([], "2026-11-18") == []

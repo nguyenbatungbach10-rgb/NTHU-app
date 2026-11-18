@@ -5,6 +5,9 @@
     shift_month()     -> tháng trước / tháng sau
     month_bounds()    -> ngày đầu của tháng này và tháng sau (để truy vấn SQL)
     build_month()     -> dựng lưới các tuần để vẽ lịch tháng
+    parse_year()      -> đọc "2026" thành 2026 (chỉ nhận năm hợp lý)
+    year_bounds()     -> ngày đầu của năm này và năm sau (để truy vấn SQL)
+    build_year()      -> dựng 12 lịch tháng thu nhỏ cho trang xem cả năm
     mark_saved()      -> đánh dấu thông báo nào đã được lưu vào Calendar
 """
 import calendar
@@ -16,6 +19,7 @@ from deadline_logic import suggest_date
 MAX_TITLE = 200
 MAX_TEXT = 1000
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+MIN_YEAR, MAX_YEAR = 1970, 2100   # khoảng năm cho phép xem (tránh năm vô lý như 0001 hay 9999)
 
 
 def is_iso_date(text):
@@ -147,6 +151,59 @@ def build_month(year, month, events, today, tasks=()):
             })
         weeks.append(row)
     return weeks
+
+
+def parse_year(text):
+    """"2026" -> 2026. Sai định dạng, None hoặc ngoài khoảng MIN_YEAR..MAX_YEAR -> None."""
+    if not isinstance(text, str) or not re.fullmatch(r"\d{4}", text):
+        return None
+    year = int(text)
+    return year if MIN_YEAR <= year <= MAX_YEAR else None
+
+
+def year_bounds(year):
+    """Ngày đầu của năm và ngày đầu của năm sau, dạng chuỗi ISO."""
+    return f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
+
+
+def build_year(year, events, today, tasks=()):
+    """Dựng 12 lịch tháng thu nhỏ của một năm.
+
+    Mỗi tháng: {"month", "name", "iso" ("2026-03"), "weeks", "count", "is_current"}.
+    Mỗi ô ngày trong `weeks`: {"day", "iso", "count", "is_today"}, với `count` là số sự kiện
+    cộng số việc cần làm (chưa xong) có hạn trong ngày đó. Ô ngoài tháng là None.
+    `count` của tháng là tổng của các ngày. Không sửa dữ liệu đầu vào.
+    """
+    per_day = {}
+    for item in events:
+        per_day[item["date"]] = per_day.get(item["date"], 0) + 1
+    for task in tasks:
+        per_day[task["due_date"]] = per_day.get(task["due_date"], 0) + 1
+
+    today_iso = today.isoformat()
+    months = []
+    for month in range(1, 13):
+        weeks, total = [], 0
+        for week in calendar.Calendar(firstweekday=0).monthdayscalendar(year, month):
+            row = []
+            for day in week:
+                if day == 0:
+                    row.append(None)
+                    continue
+                iso = date(year, month, day).isoformat()
+                count = per_day.get(iso, 0)
+                total += count
+                row.append({"day": day, "iso": iso, "count": count, "is_today": iso == today_iso})
+            weeks.append(row)
+        months.append({
+            "month": month,
+            "name": date(year, month, 1).strftime("%B"),
+            "iso": f"{year:04d}-{month:02d}",
+            "weeks": weeks,
+            "count": total,
+            "is_current": (year, month) == (today.year, today.month),
+        })
+    return months
 
 
 def shorten_title(title):

@@ -37,10 +37,10 @@ _cache = {"time": 0.0, "items": []}
 # Dữ liệu mẫu: hiện ra khi không gọi được API (mất mạng, API lỗi...)
 # để trang vẫn chạy được lúc demo.
 SAMPLE_ANNOUNCEMENTS = [
-    {"title": "[Sample] Scholarship application for spring semester",
+    {"title": "[Sample] Scholarship application for spring semester, deadline Dec 5",
      "link": "https://www.nthu.edu.tw/", "date": "2026-11-20",
      "office": "Office of Student Affairs", "language": "en"},
-    {"title": "[Sample] Course add/drop period reminder",
+    {"title": "[Sample] Course add/drop period reminder (115.11.25)",
      "link": "https://www.nthu.edu.tw/", "date": "2026-11-18",
      "office": "Division of Registrar", "language": "en"},
     {"title": "[Sample] Dormitory application for next semester",

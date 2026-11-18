@@ -12,6 +12,7 @@ Các hàm chính:
     minutes_by_subject() -> tổng phút học theo từng môn
     overview()           -> các số liệu cho đầu trang
     format_minutes()     -> 90 -> "1h 30m"
+    due_today()          -> việc chưa xong đến hạn hôm nay hoặc đã quá hạn (cho trang chủ)
 """
 from datetime import date, timedelta
 
@@ -148,6 +149,17 @@ def build_task_tree(tasks, today_iso, subject_names=None):
         parent["subtasks_total"] = len(kids)
         parent["subtasks_done"] = sum(1 for kid in kids if kid["done"])
     return sorted(parents, key=_sort_key)
+
+
+def due_today(tasks, today_iso, limit=5):
+    """Việc CHÍNH chưa xong có hạn nộp từ hôm nay trở về trước, hạn cũ nhất trước (tối đa `limit`).
+
+    Mỗi việc là một BẢN SAO có thêm `overdue`. Việc con không đếm (chỉ là bước nhỏ của việc cha).
+    """
+    rows = [dict(t, overdue=is_overdue(t, today_iso)) for t in tasks
+            if t["parent_id"] is None and not t["done"] and t["due_date"] and t["due_date"] <= today_iso]
+    rows.sort(key=lambda t: (t["due_date"], t["id"]))
+    return rows[:limit]
 
 
 # ---------- thời gian học ----------

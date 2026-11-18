@@ -1,57 +1,105 @@
 {% extends "base.html" %}
 {% from "_macros.html" import announcement %}
+{% from "_icons.html" import icon %}
 
 {% block content %}
+{% if current_user %}
+<section class="today">
+  <div class="today-date">
+    <span class="today-weekday">{{ today.strftime('%A') }}</span>
+    <span class="today-day">{{ today.day }}</span>
+    <span class="today-month">{{ today.strftime('%B %Y') }}</span>
+  </div>
+
+  <div class="today-panels">
+    <article class="today-panel t-teal">
+      <h2>Classes today</h2>
+      {% if today_classes %}
+        <ul class="today-list">
+          {% for c in today_classes %}
+            <li><span class="time">{{ c.start }}&ndash;{{ c.end }}</span>
+                <span class="what">{{ c.name }}{% if c.room %} <small>{{ c.room }}</small>{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="today-empty">No classes today.</p>
+      {% endif %}
+      <a class="today-link" href="{{ url_for('schedule_page') }}">Open timetable</a>
+    </article>
+
+    <article class="today-panel t-coral">
+      <h2>Due today or overdue</h2>
+      {% if due_tasks %}
+        <ul class="today-list">
+          {% for t in due_tasks %}
+            <li><span class="time {{ 'late' if t.overdue }}">{{ 'Overdue' if t.overdue else 'Today' }}</span>
+                <span class="what">{{ t.title }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="today-empty">Nothing due. Nice.</p>
+      {% endif %}
+      <a class="today-link" href="{{ url_for('study_page') }}">Open study planner</a>
+    </article>
+  </div>
+</section>
+{% else %}
 <section class="hero">
-  <h1>Campus &amp; Daily Life Assistant</h1>
-  <p>One place for NTHU students to plan their days, track their studies and
-     never miss an announcement or deadline.</p>
-  {% if current_user %}
-    <a class="btn" href="{{ url_for('calendar_page') }}">Open my calendar</a>
-  {% else %}
-    <a class="btn" href="{{ url_for('signup') }}">Get started</a>
-  {% endif %}
+  <div class="hero-text">
+    <h1>Your classes, deadlines and grades in one place.</h1>
+    <p>Plan the week, keep track of what is due, follow your GPA and never miss an NTHU
+       announcement.</p>
+    <div class="hero-actions">
+      <a class="btn" href="{{ url_for('signup') }}">Create a free account</a>
+      <a class="btn ghost" href="{{ url_for('login') }}">Log in</a>
+    </div>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
+  </div>
 </section>
+{% endif %}
 
-<section class="grid">
-  <article class="card">
-    <h3>Calendar &amp; Schedule</h3>
-    <p>Your weekly class timetable and a monthly calendar of events and deadlines.</p>
-    <a href="{{ url_for('schedule_page') }}">Timetable &rarr;</a>
-    &nbsp;&middot;&nbsp;
-    <a href="{{ url_for('calendar_page') }}">Calendar &rarr;</a>
-  </article>
-  <article class="card">
+<section class="tiles">
+  <a class="tile t-violet" href="{{ url_for('calendar_page') }}">
+    <span class="tile-icon">{{ icon('calendar') }}</span>
+    <h3>Calendar</h3>
+    <p>Events and deadlines by month, or see the whole year at a glance.</p>
+  </a>
+  <a class="tile t-teal" href="{{ url_for('schedule_page') }}">
+    <span class="tile-icon">{{ icon('schedule') }}</span>
+    <h3>Schedule</h3>
+    <p>Your weekly class timetable, with a warning when two classes overlap.</p>
+  </a>
+  <a class="tile t-green" href="{{ url_for('gpa_page') }}">
+    <span class="tile-icon">{{ icon('gpa') }}</span>
     <h3>Credits &amp; GPA</h3>
-    <p>Track your GPA and credits, and see what grades you need to hit your goal.</p>
-    <a href="{{ url_for('gpa_page') }}">Open &rarr;</a>
-  </article>
-  <article class="card">
-    <h3>Study Planning</h3>
-    <p>Break work into tasks, keep your materials and track study time.</p>
-    <a href="{{ url_for('study_page') }}">Open &rarr;</a>
-  </article>
-  <article class="card">
+    <p>See your GPA and credits, and the grades you need to hit your goal.</p>
+  </a>
+  <a class="tile t-coral" href="{{ url_for('study_page') }}">
+    <span class="tile-icon">{{ icon('study') }}</span>
+    <h3>Study</h3>
+    <p>Break work into tasks, keep your materials and log study time.</p>
+  </a>
+  <a class="tile t-blue" href="{{ url_for('announcements') }}">
+    <span class="tile-icon">{{ icon('news') }}</span>
     <h3>Announcements</h3>
-    <p>Scholarships, registration and dorm deadlines, filtered for you.</p>
-    <a href="{{ url_for('announcements') }}">Open &rarr;</a>
-  </article>
+    <p>Scholarships, registration and dorm notices, filtered for you.</p>
+  </a>
 </section>
 
+{% if current_user %}
 <section class="latest">
   <div class="latest-head">
-    <h2>Your upcoming events</h2>
-    {% if current_user %}<a href="{{ url_for('calendar_page') }}">Open calendar &rarr;</a>{% endif %}
+    <h2>Coming up</h2>
+    <a href="{{ url_for('calendar_page') }}">Open calendar</a>
   </div>
-  {% if not current_user %}
-    <p class="empty"><a href="{{ url_for('login') }}">Log in</a> or
-       <a href="{{ url_for('signup') }}">sign up</a> to see your calendar here.</p>
-  {% elif upcoming %}
+  {% if upcoming %}
     <ul class="list">
       {% for ev in upcoming %}
         <li class="item">
           <div class="meta">
-            <span class="office">{{ ev.date }}{% if ev.time %} &middot; {{ ev.time }}{% endif %}</span>
+            <span class="office">{{ ev.date }}{% if ev.time %} at {{ ev.time }}{% endif %}</span>
           </div>
           <h3><a href="{{ url_for('calendar_page', month=ev.date[:7]) }}">{{ ev.title }}</a></h3>
         </li>
@@ -62,11 +110,12 @@
        or save a deadline from the announcements.</p>
   {% endif %}
 </section>
+{% endif %}
 
 <section class="latest">
   <div class="latest-head">
     <h2>Latest announcements</h2>
-    <a href="{{ url_for('announcements') }}">View all &rarr;</a>
+    <a href="{{ url_for('announcements') }}">View all</a>
   </div>
   {% if latest %}
     <ul class="list">

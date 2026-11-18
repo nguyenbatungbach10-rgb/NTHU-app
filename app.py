@@ -12,7 +12,7 @@ import os
 import re
 import secrets
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from functools import wraps
 
 from flask import (
@@ -30,14 +30,19 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
 from calendar_logic import (
+    MAX_YEAR,
+    MIN_YEAR,
     WEEKDAYS,
     build_month,
     mark_saved,
     month_bounds,
     month_label,
     parse_month,
+    parse_year,
     shift_month,
     validate_event,
+    build_year,
+    year_bounds,
 )
 from gpa_logic import (
     DEFAULT_CREDITS_REQUIRED,
@@ -59,6 +64,7 @@ from schedule_logic import (
 )
 from study_logic import (
     build_task_tree,
+    due_today,
     format_minutes,
     minutes_by_subject,
     overview as study_overview,
@@ -157,10 +163,15 @@ def home():
     # Khi API lỗi, items là dữ liệu mẫu -> không hiện trên trang chủ cho khỏi nhầm
     latest = [] if error else items[:LATEST_ON_HOME]
 
-    upcoming = []
+    upcoming, today_classes, due = [], [], []
+    today = date.today()
     if g.user:
-        upcoming = db.upcoming_events(g.user["id"], date.today().isoformat(), UPCOMING_ON_HOME)
-    return render_template("home.html", latest=latest, upcoming=upcoming)
+        upcoming = db.upcoming_events(g.user["id"], today.isoformat(), UPCOMING_ON_HOME)
+        today_classes = classes_on(db.list_classes(g.user["id"]), today.weekday())
+        tomorrow = (today + timedelta(days=1)).isoformat()
+        due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
+    return render_template("home.html", latest=latest, upcoming=upcoming,
+                           today=today, today_classes=today_classes, due_tasks=due)
 
 
 @app.route("/announcements")
@@ -305,6 +316,36 @@ def calendar_page():
         next_month=f"{next_year:04d}-{next_month:02d}",
         default_date=today.isoformat() if in_this_month else start,
         in_this_month=in_this_month,
+        year=year,
+        month=month,
+        prev_year_month=f"{year - 1:04d}-{month:02d}",
+        next_year_month=f"{year + 1:04d}-{month:02d}",
+        month_names=[date(year, m, 1).strftime("%b") for m in range(1, 13)],
+        today_month=f"{today.year:04d}-{today.month:02d}",
+    )
+
+
+@app.route("/calendar/year")
+@login_required
+def calendar_year_page():
+    """Lịch cả năm: 12 tháng thu nhỏ, bấm vào một tháng để mở lịch tháng. ?year=YYYY để chọn năm."""
+    today = date.today()
+    year = parse_year(request.args.get("year", "")) or today.year
+    start, end = year_bounds(year)
+    events = db.list_events(g.user["id"], start, end)
+    tasks = db.list_tasks_due(g.user["id"], start, end)
+    months = build_year(year, events, today, tasks)
+    return render_template(
+        "calendar_year.html",
+        year=year,
+        months=months,
+        weekdays=WEEKDAYS,
+        prev_year=year - 1 if year > MIN_YEAR else None,
+        next_year=year + 1 if year < MAX_YEAR else None,
+        is_this_year=year == today.year,
+        total=sum(m["count"] for m in months),
+        min_year=MIN_YEAR,
+        max_year=MAX_YEAR,
     )
 
 

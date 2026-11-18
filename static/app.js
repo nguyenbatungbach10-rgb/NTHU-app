@@ -343,3 +343,43 @@ document.querySelectorAll("[data-add-class]").forEach((button) => {
 document.querySelectorAll("[data-class]").forEach((card) => {
   card.addEventListener("click", () => openClass(card.dataset));
 });
+
+// ---------- Menu 3 gạch (thả xuống) ----------
+// Chỉ đóng/mở giao diện: bấm nút, bấm ra ngoài, hoặc nhấn Esc để đóng.
+(() => {
+  const button = document.getElementById("menu-button");
+  const panel = document.getElementById("site-menu");
+  if (!button || !panel) return;
+
+  function setOpen(open) {
+    button.setAttribute("aria-expanded", String(open));
+    button.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    panel.hidden = !open;
+  }
+
+  button.addEventListener("click", () => setOpen(panel.hidden));
+  document.addEventListener("click", (event) => {
+    if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !panel.hidden) {
+      setOpen(false);
+      button.focus();
+    }
+  });
+})();
+
+// ---------- Calendar: bảng chọn nhanh tháng/năm đóng khi bấm ra ngoài hoặc nhấn Esc ----------
+(() => {
+  const jump = document.querySelector("details.jump");
+  if (!jump) return;
+  document.addEventListener("click", (event) => {
+    if (jump.open && !jump.contains(event.target)) jump.open = false;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && jump.open) {
+      jump.open = false;
+      jump.querySelector("summary").focus();
+    }
+  });
+})();

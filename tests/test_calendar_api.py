@@ -111,12 +111,12 @@ def test_home_shows_my_upcoming_events(browser):
     today = date.today().isoformat()
     browser.api("POST", "/api/events", {"title": "Study group", "date": today})
     html = browser.client.get("/").get_data(as_text=True)
-    assert "Your upcoming events" in html and "Study group" in html
+    assert "Coming up" in html and "Study group" in html
 
 
 def test_home_for_visitors_prompts_login(make_browser):
     html = make_browser().client.get("/").get_data(as_text=True)
-    assert "to see your calendar here" in html
+    assert "Create a free account" in html and "Classes today" not in html
 
 
 def test_announcements_save_button_states(browser, make_browser):

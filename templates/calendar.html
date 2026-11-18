@@ -4,13 +4,31 @@
 
 {% block content %}
 <div class="cal-bar">
-  <h1>{{ label }}</h1>
+  {# Bấm vào tên tháng để nhảy thẳng tới tháng/năm khác (thẻ <details> có sẵn của HTML, không cần JavaScript) #}
+  <details class="jump">
+    <summary aria-label="Pick another month"><h1>{{ label }}</h1><span class="chev" aria-hidden="true"></span></summary>
+    <div class="jump-panel">
+      <div class="jump-year">
+        <a href="{{ url_for('calendar_page', month=prev_year_month) }}" aria-label="Previous year">&lsaquo;</a>
+        <strong>{{ year }}</strong>
+        <a href="{{ url_for('calendar_page', month=next_year_month) }}" aria-label="Next year">&rsaquo;</a>
+      </div>
+      <div class="jump-months">
+        {% for name in month_names %}
+          <a class="{{ 'on' if loop.index == month }}"
+             href="{{ url_for('calendar_page', month='%04d-%02d'|format(year, loop.index)) }}">{{ name }}</a>
+        {% endfor %}
+      </div>
+      <a class="jump-all" href="{{ url_for('calendar_year_page', year=year) }}">See all of {{ year }}</a>
+    </div>
+  </details>
   <div class="cal-nav">
-    <a class="btn small" href="{{ url_for('calendar_page', month=prev_month) }}">&larr; Prev</a>
+    <a class="btn small ghost" href="{{ url_for('calendar_page', month=prev_month) }}" aria-label="Previous month">&larr; Prev</a>
     {% if not in_this_month %}
-      <a class="btn small" href="{{ url_for('calendar_page') }}">Today</a>
+      <a class="btn small ghost" href="{{ url_for('calendar_page') }}">Today</a>
     {% endif %}
-    <a class="btn small" href="{{ url_for('calendar_page', month=next_month) }}">Next &rarr;</a>
+    <a class="btn small ghost" href="{{ url_for('calendar_page', month=next_month) }}" aria-label="Next month">Next &rarr;</a>
+    <a class="btn small ghost" href="{{ url_for('calendar_year_page', year=year) }}">Year view</a>
     <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ Add event</button>
   </div>
 </div>

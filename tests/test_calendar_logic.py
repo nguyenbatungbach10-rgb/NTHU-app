@@ -186,3 +186,70 @@ def test_mark_saved_old_event_on_posted_date_is_not_considered_saved():
     from calendar_logic import mark_saved
     items = [{"title": "Application deadline: Nov 20", "date": "2026-11-01"}]
     assert mark_saved(items, {("Application deadline: Nov 20", "2026-11-01")})[0]["saved"] is False
+
+
+# ---------- xem cả năm ----------
+from calendar_logic import MAX_YEAR, MIN_YEAR, build_year, parse_year, year_bounds  # noqa: E402
+
+
+def test_parse_year_accepts_four_digit_years_in_range():
+    assert parse_year("2026") == 2026
+    assert parse_year(str(MIN_YEAR)) == MIN_YEAR and parse_year(str(MAX_YEAR)) == MAX_YEAR
+
+
+def test_parse_year_rejects_bad_input():
+    for bad in [None, "", "26", "20266", "abc", "2026-11", " 2026", "-2026", str(MIN_YEAR - 1), str(MAX_YEAR + 1), "0000", 2026]:
+        assert parse_year(bad) is None
+
+
+def test_year_bounds():
+    assert year_bounds(2026) == ("2026-01-01", "2027-01-01")
+    assert year_bounds(999) == ("0999-01-01", "1000-01-01")
+
+
+def test_build_year_has_twelve_months_in_order():
+    months = build_year(2026, [], date(2026, 11, 18))
+    assert [m["month"] for m in months] == list(range(1, 13))
+    assert months[0]["name"] == "January" and months[11]["name"] == "December"
+    assert months[10]["iso"] == "2026-11"
+    assert all(m["count"] == 0 for m in months)
+
+
+def test_build_year_marks_current_month_and_today_only():
+    months = build_year(2026, [], date(2026, 11, 18))
+    assert [m["month"] for m in months if m["is_current"]] == [11]
+    today_cells = [c for m in months for w in m["weeks"] for c in w if c and c["is_today"]]
+    assert [c["iso"] for c in today_cells] == ["2026-11-18"]
+    # năm khác: không có tháng "hiện tại" và không có ô "hôm nay"
+    other = build_year(2025, [], date(2026, 11, 18))
+    assert not any(m["is_current"] for m in other)
+    assert not any(c and c["is_today"] for m in other for w in m["weeks"] for c in w)
+
+
+def test_build_year_counts_events_and_tasks_per_day():
+    events = [{"date": "2026-03-05"}, {"date": "2026-03-05"}, {"date": "2026-04-01"}]
+    tasks = [{"due_date": "2026-03-05"}, {"due_date": "2026-12-31"}]
+    months = build_year(2026, events, date(2026, 1, 1), tasks)
+    by_iso = {c["iso"]: c["count"] for m in months for w in m["weeks"] for c in w if c}
+    assert by_iso["2026-03-05"] == 3 and by_iso["2026-04-01"] == 1 and by_iso["2026-12-31"] == 1
+    assert by_iso["2026-03-06"] == 0
+    assert months[2]["count"] == 3 and months[3]["count"] == 1 and months[11]["count"] == 1
+
+
+def test_build_year_grid_shape_and_leap_february():
+    leap = build_year(2028, [], date(2028, 1, 1))[1]
+    plain = build_year(2027, [], date(2027, 1, 1))[1]
+    days = lambda m: sum(1 for w in m["weeks"] for c in w if c)  # noqa: E731
+    assert days(leap) == 29 and days(plain) == 28
+    assert all(len(w) == 7 for w in leap["weeks"])
+    # 1/12/2026 là thứ Ba: ô đầu tiên (thứ Hai) để trống
+    dec = build_year(2026, [], date(2026, 1, 1))[11]
+    assert dec["weeks"][0][0] is None and dec["weeks"][0][1]["day"] == 1
+
+
+def test_build_year_does_not_change_inputs():
+    events = [{"date": "2026-03-05", "title": "x"}]
+    tasks = [{"due_date": "2026-03-05", "title": "t"}]
+    build_year(2026, events, date(2026, 1, 1), tasks)
+    assert events == [{"date": "2026-03-05", "title": "x"}]
+    assert tasks == [{"due_date": "2026-03-05", "title": "t"}]

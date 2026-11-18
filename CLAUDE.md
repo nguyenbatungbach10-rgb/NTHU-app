@@ -9,7 +9,8 @@ it and to build the core features ourselves. When you write code, explain it
 in simple words (the owner is a beginner), so we can answer TA questions.
 
 ## Features
-1. Personal Calendar & General Schedule - DONE (month view with events and task deadlines;
+1. Personal Calendar & General Schedule - DONE (month view with events and task deadlines,
+   quick month/year jump, /calendar/year 12-month overview;
    /schedule weekly class timetable with overlap warnings; schedule_logic.py + /api/classes).
 2. Study planning - DONE (/study page: tasks with subtasks and due dates, subjects with
    materials, study-time log; study_logic.py + /api/subjects, /api/tasks, /api/sessions).
@@ -24,10 +25,12 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    China years like 115年10月08日, 2026-11-20, 11月20日, "Nov 20"...), else on the posted date,
    and the page says "date found in the title" so users can check the guess.
 Accounts: sign-up / log-in / log-out with sessions.
+UI: hamburger dropdown menu (base.html), one colour per feature (body.theme-*), home page
+   "today" panel (classes today + tasks due, study_logic.due_today).
 
 ## Stack
 Flask, Jinja2 template inheritance + macros, requests, sqlite3 (stdlib, no ORM),
-plain HTML/CSS (purple theme), a little vanilla JavaScript (static/app.js).
+plain HTML/CSS (colour per feature, Google Fonts with system fallback), a little vanilla JavaScript (static/app.js).
 Password hashing: werkzeug.security. No other packages without asking the team.
 
 ## Architecture rules (keep these)
@@ -45,7 +48,7 @@ Password hashing: werkzeug.security. No other packages without asking the team.
 ## Folder structure
 app.py                  routes, login/session, CSRF
 nthu_api.py             fetch / normalize / classify / filter announcements
-calendar_logic.py       validate_event, month grid, mark_saved (pure Python)
+calendar_logic.py       validate_event, month grid, year overview, mark_saved (pure Python)
 deadline_logic.py       read deadline/event dates from announcement titles (pure Python)
 schedule_logic.py       validate_class, weekly timetable, overlap detection (pure Python)
 study_logic.py          validate subject/task/session, task tree, week totals (pure Python)
@@ -60,10 +63,11 @@ GIAI_THICH_GPA.md       explanation of the Credit & GPA feature
 GIAI_THICH_STUDY.md     explanation of the Study planning feature
 GIAI_THICH_SCHEDULE.md  explanation of the weekly timetable
 GIAI_THICH_DEADLINE.md  explanation of reading dates from announcement titles
-templates/              base, home, announcements, calendar, schedule, gpa, study, login, signup,
-                        _macros.html (Jinja macro shared by home and announcements)
-static/                 style.css (purple theme), app.js
-tests/                  pytest (223 tests): logic, auth, CSRF, API, data isolation
+GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours, today panel
+templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, login, signup,
+                        _macros.html (announcement macro), _icons.html (SVG icon macro)
+static/                 style.css (design tokens at the top), app.js
+tests/                  pytest (247 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),
@@ -83,4 +87,5 @@ Before deploying, set the SECRET_KEY environment variable.
 
 ## Conventions
 - Keep functions short, with a one-line docstring (Vietnamese or English).
+- Keep the Python share of the code above 50% (HTML/CSS/JS count against it); measured ~52%.
 - Add a test for every new behaviour, especially security-related ones.
