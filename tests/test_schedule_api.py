@@ -73,7 +73,7 @@ def test_schedule_page_shows_classes_and_conflicts(browser):
     browser.api("POST", "/api/classes", dict(CLASS, name="Chemistry", weekday=2, start="13:00", end="14:00"))
     html = browser.client.get("/schedule").data.decode()
     assert "Calculus" in html and "Physics" in html and "Chemistry" in html
-    assert html.count("overlaps another class") == 2          # chỉ hai môn trùng giờ bị cảnh báo
+    assert html.count('class="tt-block conflict"') == 2      # chỉ hai môn trùng giờ bị tô đỏ
     assert "5h" in html                                         # 2h + 2h + 1h
 
 
@@ -87,9 +87,9 @@ def test_schedule_page_shows_todays_classes(browser):
 
 
 def test_weekend_columns_only_when_needed(browser):
-    assert "Saturday</span>" not in browser.client.get("/schedule").data.decode()
+    assert 'title="Saturday"' not in browser.client.get("/schedule").data.decode()
     browser.api("POST", "/api/classes", dict(CLASS, weekday=5))
-    assert "Saturday</span>" in browser.client.get("/schedule").data.decode()
+    assert 'title="Saturday"' in browser.client.get("/schedule").data.decode()
 
 
 def test_schedule_page_escapes_user_text(browser):

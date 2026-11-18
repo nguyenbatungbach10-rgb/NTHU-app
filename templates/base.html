@@ -3,7 +3,8 @@
 {% from "_icons.html" import icon %}
 {# Mỗi trang một màu chủ đạo (Calendar tím, Schedule xanh ngọc, GPA xanh lá, Study cam đỏ, Announcements xanh dương) #}
 {% set themes = {'calendar_page': 'violet', 'calendar_year_page': 'violet', 'schedule_page': 'teal',
-                 'gpa_page': 'green', 'study_page': 'coral', 'announcements': 'blue'} %}
+                 'gpa_page': 'green', 'study_page': 'coral', 'announcements': 'blue',
+                 'map_page': 'amber'} %}
 {% set menu = [
   ('home', 'Home', 'home', 'violet'),
   ('calendar_page', 'Calendar', 'calendar', 'violet'),
@@ -11,6 +12,7 @@
   ('announcements', 'Announcements', 'news', 'blue'),
   ('gpa_page', 'Credits & GPA', 'gpa', 'green'),
   ('study_page', 'Study', 'study', 'coral'),
+  ('map_page', 'Campus map', 'map', 'amber'),
 ] %}
 <head>
   <meta charset="UTF-8">
@@ -22,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body class="theme-{{ themes.get(request.endpoint, 'violet') }}">
   <header class="topbar">
@@ -78,5 +81,6 @@
 
   <footer class="footer">I2P Final Project &middot; NTHU student project, not an official NTHU site</footer>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

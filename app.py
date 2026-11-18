@@ -13,7 +13,7 @@ import re
 import secrets
 import sqlite3
 from datetime import date, timedelta
-from functools import wraps
+from functools import lru_cache, wraps
 
 from flask import (
     Flask,
@@ -29,6 +29,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+import map_logic
 from calendar_logic import (
     MAX_YEAR,
     MIN_YEAR,
@@ -56,7 +57,8 @@ from gpa_logic import (
     validate_goals,
 )
 from schedule_logic import (
-    build_week,
+    PERIODS,
+    build_timetable,
     classes_on,
     validate_class,
     visible_days,
@@ -167,7 +169,8 @@ def home():
     today = date.today()
     if g.user:
         upcoming = db.upcoming_events(g.user["id"], today.isoformat(), UPCOMING_ON_HOME)
-        today_classes = classes_on(db.list_classes(g.user["id"]), today.weekday())
+        today_classes = map_logic.class_stops(classes_on(db.list_classes(g.user["id"]), today.weekday()),
+                                              campus_places()[0])
         tomorrow = (today + timedelta(days=1)).isoformat()
         due = due_today(db.list_tasks_due(g.user["id"], "0000-01-01", tomorrow), today.isoformat())
     return render_template("home.html", latest=latest, upcoming=upcoming,
@@ -470,7 +473,7 @@ def api_goals():
 def schedule_page():
     """Thời khóa biểu tuần: mỗi thứ một cột, các môn xếp theo giờ, môn trùng giờ được tô cảnh báo."""
     classes = db.list_classes(g.user["id"])
-    days = build_week(classes)
+    days = build_timetable(classes)
     today = date.today()
     return render_template(
         "schedule.html",
@@ -482,6 +485,7 @@ def schedule_page():
         total_hours=format_minutes(weekly_minutes(classes)),
         class_count=len(classes),
         weekday_names=[d["name"] for d in days],
+        periods=PERIODS,
     )
 
 
@@ -658,6 +662,66 @@ def api_session(session_id):
     if not subject_exists(session_data["subject_id"]):
         return jsonify({"error": "subject not found"}), 400
     return jsonify(db.update_session(g.user["id"], session_id, session_data))
+
+
+# ======================= Bản đồ NTHU =======================
+
+@lru_cache(maxsize=1)
+def campus_places():
+    """Đọc dữ liệu bản đồ một lần rồi giữ trong bộ nhớ (file không đổi khi web đang chạy)."""
+    return map_logic.load_places()
+
+
+def find_place(place_id):
+    """Địa điểm theo id (ví dụ "r3815072"), hoặc None."""
+    return next((p for p in campus_places()[0] if p["id"] == place_id), None)
+
+
+@app.route("/map")
+def map_page():
+    """Bản đồ 2D/3D. ?place=<id> để mở sẵn một địa điểm, ?q=Delta 205 để tìm theo tên hoặc phòng học."""
+    places, campuses = campus_places()
+    q = request.args.get("q", "").strip()[:100]
+    focus = find_place(request.args.get("place", ""))
+    if focus is None and q:
+        found = map_logic.search(q, places, limit=1)
+        focus = found[0] if found else None
+    stops = []
+    if g.user:
+        classes = classes_on(db.list_classes(g.user["id"]), date.today().weekday())
+        stops = map_logic.class_stops(classes, places)
+    return render_template(
+        "map.html",
+        categories=map_logic.category_summary(places),
+        campuses=campuses,
+        focus=focus,
+        q=q,
+        results=map_logic.search(q, places) if q else [],
+        stops=stops,
+        place_count=len(places),
+    )
+
+
+@app.route("/api/places")
+def api_places():
+    """Mọi địa điểm dạng GeoJSON để vẽ lên bản đồ (dữ liệu công khai, không cần đăng nhập)."""
+    return jsonify(map_logic.to_geojson(campus_places()[0]))
+
+
+@app.route("/api/places/search")
+def api_places_search():
+    """Tìm địa điểm: ?q=delta, ?q=台達, ?q=綜三 B101."""
+    q = request.args.get("q", "")[:100]
+    return jsonify(map_logic.search(q, campus_places()[0]))
+
+
+@app.route("/api/places/<place_id>")
+def api_place(place_id):
+    """Chi tiết một địa điểm, kèm chỗ ăn / trạm xe / cửa hàng gần nhất."""
+    place = find_place(place_id)
+    if place is None:
+        return jsonify({"error": "place not found"}), 404
+    return jsonify(map_logic.details(place, campus_places()[0]))
 
 
 if __name__ == "__main__":

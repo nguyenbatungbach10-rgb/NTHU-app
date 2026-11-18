@@ -59,20 +59,56 @@
   {% endif %}
 </section>
 
-<div class="week-wrap">
-  <div class="week" style="--days: {{ days | length }}">
+{# Thời khóa biểu theo tiết học của NTHU: mỗi hàng một tiết, mỗi cột một thứ.
+   Vị trí của từng khối (row, span, lane, lanes) do Python tính; CSS chỉ đặt khối vào đúng chỗ. #}
+<div class="tt-wrap">
+  <div class="tt" style="--days: {{ days | length }}; --rows: {{ periods | length }}">
+    <div class="tt-corner"></div>
     {% for day in days %}
-      <div class="week-col {{ 'today' if day.weekday == today_weekday }}">
-        <div class="week-head">
-          <span>{{ day.name }}</span>
-          <button class="cal-add" type="button" data-add-class data-weekday="{{ day.weekday }}"
-                  aria-label="Add class on {{ day.name }}">+</button>
-        </div>
-        {% for c in day.classes %}{{ class_card(c) }}{% endfor %}
+      <div class="tt-head {{ 'is-today' if day.weekday == today_weekday }}" title="{{ day.name }}"><span>{{ day.short }}</span></div>
+    {% endfor %}
+
+    <div class="tt-times">
+      {% for p in periods %}
+        <div class="tt-time"><small>{{ p.start }}</small><b>{{ p.id }}</b><small>{{ p.end }}</small></div>
+      {% endfor %}
+    </div>
+
+    {% for day in days %}
+      <div class="tt-col {{ 'is-today' if day.weekday == today_weekday }}">
+        {% for p in periods %}
+          {# ô trống: bấm để thêm môn vào đúng thứ và tiết này (người dùng bàn phím dùng nút "+ Add class") #}
+          <button class="tt-cell" type="button" tabindex="-1" data-add-class data-weekday="{{ day.weekday }}"
+                  data-start="{{ p.start }}" data-end="{{ p.end }}"
+                  aria-label="Add class on {{ day.name }}, period {{ p.id }}">+</button>
+        {% endfor %}
+        {% for b in day.blocks %}
+          <button class="tt-block {{ 'conflict' if b.conflict }}" type="button" data-class
+                  style="--row: {{ b.row }}; --span: {{ b.span }}; --lane: {{ b.lane }}; --lanes: {{ b.lanes }}"
+                  title="{{ b.name }}, {{ b.start }}-{{ b.end }}{{ ' (overlaps another class)' if b.conflict }}"
+                  data-id="{{ b.id }}" data-name="{{ b.name }}" data-weekday="{{ b.weekday }}"
+                  data-start="{{ b.start }}" data-end="{{ b.end }}" data-room="{{ b.room }}">
+            <span class="tt-name">{{ b.name }}</span>
+            {% if b.room %}<span class="tt-room">{{ b.room }}</span>{% endif %}
+            <span class="tt-when">{{ b.start }}&ndash;{{ b.end }}</span>
+            {% if b.conflict %}<span class="tt-flag" aria-hidden="true">!</span>{% endif %}
+          </button>
+        {% endfor %}
       </div>
     {% endfor %}
   </div>
 </div>
+
+{% if days | selectattr('outside') | list %}
+  <section class="panel tt-outside">
+    <h2>Outside the usual periods</h2>
+    <p class="muted">These classes start or end outside the NTHU periods 1 to d, so they do not fit in the grid.</p>
+    {% for day in days %}{% if day.outside %}
+      <p class="sub">{{ day.name }}</p>
+      <div class="today-list">{% for c in day.outside %}{{ class_card(c) }}{% endfor %}</div>
+    {% endif %}{% endfor %}
+  </section>
+{% endif %}
 
 <dialog id="class-dialog">
   <form class="dialog-form">

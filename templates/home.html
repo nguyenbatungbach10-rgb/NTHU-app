@@ -16,9 +16,11 @@
       <h2>Classes today</h2>
       {% if today_classes %}
         <ul class="today-list">
-          {% for c in today_classes %}
+          {% for stop in today_classes %}{% set c = stop['item'] %}
             <li><span class="time">{{ c.start }}&ndash;{{ c.end }}</span>
-                <span class="what">{{ c.name }}{% if c.room %} <small>{{ c.room }}</small>{% endif %}</span></li>
+                <span class="what">{{ c.name }}{% if c.room %} <small>{{ c.room }}</small>{% endif %}
+                  {%- if stop.place %} <a class="where" href="{{ url_for('map_page', place=stop.place.id) }}"
+                     title="Show {{ stop.place.name }} on the map">Map</a>{% endif %}</span></li>
           {% endfor %}
         </ul>
       {% else %}
@@ -80,6 +82,11 @@
     <span class="tile-icon">{{ icon('study') }}</span>
     <h3>Study</h3>
     <p>Break work into tasks, keep your materials and log study time.</p>
+  </a>
+  <a class="tile t-amber" href="{{ url_for('map_page') }}">
+    <span class="tile-icon">{{ icon('map') }}</span>
+    <h3>Campus map</h3>
+    <p>Find buildings, dorms and food in 2D or 3D, and where today's classes are.</p>
   </a>
   <a class="tile t-blue" href="{{ url_for('announcements') }}">
     <span class="tile-icon">{{ icon('news') }}</span>

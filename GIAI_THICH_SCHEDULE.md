@@ -69,8 +69,18 @@ Mọi POST/PUT/DELETE cần CSRF token.
 - **Test thế nào?** `tests/test_schedule_logic.py` (đúng/sai của trùng giờ, sắp xếp, kiểm tra dữ liệu) và
   `tests/test_schedule_api.py` (CRUD, CSRF, cô lập dữ liệu, XSS).
 
+## 8b. Lưới theo tiết học NTHU (bảng thời khóa biểu)
+- `PERIODS` trong schedule_logic.py là 14 tiết của NTHU: 1, 2, 3, 4, n, 5, 6, 7, 8, 9, a, b, c, d (08:00 đến 22:20).
+- `class_periods(môn)` trả về (tiết đầu, tiết cuối) mà môn chạm vào, dùng lại quy tắc `overlaps`:
+  10:10-12:00 chạm tiết 3 và 4 -> (2, 3). Môn không chạm tiết nào (ví dụ 06:30-07:30) trả về None
+  và được liệt kê riêng ở mục "Outside the usual periods".
+- `build_timetable()` thêm cho mỗi khối: `row` (tiết đầu), `span` (số tiết), `lane` và `lanes`.
+  Hai môn chồng nhau được chia làn để đứng cạnh nhau (`_assign_lanes`: xếp theo tiết bắt đầu, mỗi môn
+  lấy làn trống đầu tiên; một nhóm môn chồng nhau dùng chung số làn). CSS chỉ đặt khối theo các số đó.
+- Bấm vào ô trống mở hộp thoại thêm môn, điền sẵn thứ và giờ của tiết đó.
+
 ## 9. Hạn chế đã biết
-- Chưa có chọn "tiết học" của NTHU (tiết 1-4, n, 5-9, a-c); phải nhập giờ cụ thể.
+- Vẫn nhập giờ cụ thể khi thêm môn (bấm ô trống thì giờ của tiết được điền sẵn).
 - Chưa phân biệt môn chỉ học nửa kỳ hoặc tuần chẵn/lẻ.
 - Môn trong thời khóa biểu **chưa tự xuất hiện** trên lịch tháng (hai trang tách riêng).
 - Chưa tự gắn với danh sách môn trong trang GPA hoặc Study (nhập tên môn riêng ở mỗi nơi).

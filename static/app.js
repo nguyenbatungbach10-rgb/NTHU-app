@@ -338,7 +338,8 @@ const openClass = crudDialog(
 );
 
 document.querySelectorAll("[data-add-class]").forEach((button) => {
-  button.addEventListener("click", () => openClass({ weekday: button.dataset.weekday }));
+  button.addEventListener("click", () =>
+    openClass({ weekday: button.dataset.weekday, start: button.dataset.start, end: button.dataset.end }));
 });
 document.querySelectorAll("[data-class]").forEach((card) => {
   card.addEventListener("click", () => openClass(card.dataset));

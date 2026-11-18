@@ -100,3 +100,81 @@ def test_validate_class_rejects_bad_data(payload, fragment):
 
 def test_validate_class_rejects_non_object():
     assert s.validate_class("nope") == (None, "JSON body must be an object")
+
+
+# ---------- thời khóa biểu theo tiết ----------
+from schedule_logic import PERIODS, build_timetable, class_periods  # noqa: E402
+
+
+def _c(id, weekday, start, end, name="x"):
+    return {"id": id, "name": name, "weekday": weekday, "start": start, "end": end, "room": ""}
+
+
+def test_periods_are_in_order_and_do_not_overlap():
+    ids = [p["id"] for p in PERIODS]
+    assert ids == ["1", "2", "3", "4", "n", "5", "6", "7", "8", "9", "a", "b", "c", "d"]
+    for a, b in zip(PERIODS, PERIODS[1:]):
+        assert a["start"] < a["end"] <= b["start"]
+
+
+def test_class_periods_exact_and_multiple_periods():
+    assert class_periods(_c(1, 0, "08:00", "08:50")) == (0, 0)
+    assert class_periods(_c(1, 0, "10:10", "12:00")) == (2, 3)          # tiết 3 và 4
+    assert class_periods(_c(1, 0, "13:20", "15:10")) == (5, 6)
+    assert class_periods(_c(1, 0, "08:00", "22:20")) == (0, 13)
+
+
+def test_class_periods_partial_overlap_counts_the_period():
+    assert class_periods(_c(1, 0, "08:30", "09:10")) == (0, 1)          # chạm cả tiết 1 và 2
+    assert class_periods(_c(1, 0, "09:50", "10:11")) == (2, 2)          # 09:50 vừa hết tiết 2, 10:11 chạm tiết 3
+
+
+def test_class_periods_touching_edge_does_not_count():
+    # kết thúc đúng lúc tiết sau bắt đầu: không chạm tiết sau (giống quy tắc overlaps)
+    assert class_periods(_c(1, 0, "09:00", "10:10")) == (1, 1)
+    assert class_periods(_c(1, 0, "07:10", "08:00")) is None
+
+
+def test_class_periods_none_when_outside_every_period():
+    assert class_periods(_c(1, 0, "06:00", "07:00")) is None
+    assert class_periods(_c(1, 0, "22:30", "23:30")) is None
+    assert class_periods(_c(1, 0, "12:00", "12:10")) is None            # kẽ hở giữa tiết 4 và tiết n
+
+
+def test_build_timetable_blocks_rows_and_spans():
+    days = build_timetable([_c(1, 0, "10:10", "12:00"), _c(2, 2, "08:00", "08:50")])
+    mon = days[0]["blocks"][0]
+    assert (mon["row"], mon["span"], mon["lane"], mon["lanes"]) == (2, 2, 0, 1)
+    assert days[0]["short"] == "Mon" and days[2]["blocks"][0]["row"] == 0
+    assert days[0]["outside"] == [] and days[1]["blocks"] == []
+
+
+def test_build_timetable_overlapping_classes_go_side_by_side():
+    days = build_timetable([_c(1, 0, "09:00", "11:00", "A"), _c(2, 0, "10:10", "12:00", "B"), _c(3, 0, "13:20", "14:10", "C")])
+    by_name = {b["name"]: b for b in days[0]["blocks"]}
+    assert by_name["A"]["lanes"] == by_name["B"]["lanes"] == 2
+    assert {by_name["A"]["lane"], by_name["B"]["lane"]} == {0, 1}
+    assert by_name["C"]["lanes"] == 1 and by_name["C"]["lane"] == 0       # môn riêng không bị chia hẹp
+    assert by_name["A"]["conflict"] and by_name["B"]["conflict"] and not by_name["C"]["conflict"]
+
+
+def test_build_timetable_three_way_and_reused_lane():
+    # A (tiết 1-2) và B (tiết 2-3) chồng; C (tiết 3) chồng B nhưng không chồng A -> dùng lại làn 0
+    days = build_timetable([_c(1, 0, "08:00", "09:50", "A"), _c(2, 0, "09:00", "11:00", "B"), _c(3, 0, "10:10", "11:00", "C")])
+    by = {b["name"]: b for b in days[0]["blocks"]}
+    assert by["A"]["lane"] == 0 and by["B"]["lane"] == 1 and by["C"]["lane"] == 0
+    assert all(b["lanes"] == 2 for b in by.values())
+
+
+def test_build_timetable_classes_outside_periods_listed_separately():
+    days = build_timetable([_c(1, 1, "06:00", "07:00", "Early"), _c(2, 1, "08:00", "08:50", "Normal")])
+    assert [c["name"] for c in days[1]["outside"]] == ["Early"]
+    assert [b["name"] for b in days[1]["blocks"]] == ["Normal"]
+    assert [c["name"] for c in days[1]["classes"]] == ["Early", "Normal"]  # danh sách đầy đủ vẫn còn
+
+
+def test_build_timetable_does_not_change_input():
+    classes = [_c(1, 0, "09:00", "11:00"), _c(2, 0, "10:10", "12:00")]
+    before = [dict(c) for c in classes]
+    build_timetable(classes)
+    assert classes == before
