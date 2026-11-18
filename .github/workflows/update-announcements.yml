@@ -1,0 +1,32 @@
+# Mỗi ngày 2 lần, máy của GitHub tải thông báo mới từ NTHU Data API rồi gửi lên PythonAnywhere.
+# Cần 2 secret trong GitHub > Settings > Secrets and variables > Actions: PA_USERNAME, PA_TOKEN
+# (xem tools/upload_snapshot.py). Chạy thử bằng tay: tab Actions > Update announcements > Run workflow.
+name: Update announcements
+
+on:
+  schedule:
+    # Giờ UTC: 22:17 và 06:17 UTC = 06:17 và 14:17 giờ Đài Loan (phút lẻ để tránh giờ GitHub đông máy)
+    - cron: "17 6,22 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read     # chỉ đọc code, không commit gì vào repo
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install packages
+        run: pip install -r requirements.txt
+      - name: Download announcements
+        run: python tools/save_announcements.py --output snapshot.json
+      - name: Upload to PythonAnywhere
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_TOKEN: ${{ secrets.PA_TOKEN }}
+        run: python tools/upload_snapshot.py snapshot.json

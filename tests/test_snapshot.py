@@ -35,6 +35,7 @@ def fresh(monkeypatch, tmp_path):
     monkeypatch.setattr(nthu_api, "_cache", {"time": 0.0, "items": [], "notice": None})
     path = tmp_path / "snapshot.json"
     monkeypatch.setattr(nthu_api, "SNAPSHOT_FILE", path)
+    monkeypatch.setattr(nthu_api, "LATEST_SNAPSHOT_FILE", tmp_path / "latest.json")
     return path
 
 

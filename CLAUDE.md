@@ -32,6 +32,9 @@ in simple words (the owner is a beginner), so we can answer TA questions.
    If the API cannot be reached (PythonAnywhere free plan blocks api.nthusa.tw), fetch_announcements()
    falls back to data/announcements_snapshot.json (made by python tools/save_announcements.py), then to
    sample data; it returns (items, notice) with notice None / {"kind": "snapshot"|"sample", ...}.
+   Auto update: .github/workflows/update-announcements.yml (twice a day) runs save_announcements.py --output
+   and tools/upload_snapshot.py, which uploads to instance/announcements_snapshot.json via the PythonAnywhere
+   files API (secrets PA_USERNAME, PA_TOKEN). load_snapshot() uses the newer of data/ and instance/ (by saved_at).
 5. Campus map - DONE (/map: MapLibre GL JS + OpenFreeMap tiles, 2D/3D toggle, search by name,
    abbreviation or room ("Delta 205", "綜三 B101"), category filter, nearest food / bus / shop,
    today's classes linked to buildings; map_logic.py + /api/places, /api/places/search, /api/places/<id>).
@@ -84,7 +87,9 @@ i18n.py                 translations (zh-TW), language detection, dates/duration
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
 tools/fetch_map_data.py downloads a fresh data/nthu_osm.csv from the Overpass API
-tools/save_announcements.py  saves real announcements to data/announcements_snapshot.json (run where the API is reachable)
+tools/save_announcements.py  saves real announcements to data/announcements_snapshot.json (or --output PATH), Taiwan time
+tools/upload_snapshot.py     uploads a snapshot to PythonAnywhere (files API); run by GitHub Actions
+.github/workflows/update-announcements.yml  daily announcements update
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
                         study_sessions, classes, login_failures tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
@@ -102,7 +107,7 @@ GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines v
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, error,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only)
-tests/                  pytest (465 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (474 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

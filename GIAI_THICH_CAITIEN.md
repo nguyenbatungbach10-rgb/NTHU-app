@@ -136,6 +136,35 @@ các dòng ngăn bằng đường kẻ mảnh:
 - Trên điện thoại (`@media (max-width: 560px)`) ô ngày nhỏ lại và phần "tomorrow"/nút xuống dưới tiêu đề.
 - Tab "All announcements" vẫn dùng thẻ lớn vì ở đó cần thấy nhãn loại (Scholarship, Dorm...).
 
+## 13. Thông báo tự cập nhật mỗi ngày (GitHub Actions + API của PythonAnywhere)
+
+**Vấn đề:** server PythonAnywhere (gói miễn phí) không gọi được api.nthusa.tw, nên web dùng bản lưu.
+Nếu không ai cập nhật bản lưu, sau vài tuần "Upcoming events" sẽ trống. Tài khoản miễn phí tạo sau 15/01/2026
+cũng không có "scheduled task" để tự chạy việc gì đó mỗi ngày trên PythonAnywhere.
+
+**Cách làm:** để **máy của GitHub** làm việc đó.
+
+```
+GitHub Actions (06:17 và 14:17 giờ Đài Loan)
+  1. tools/save_announcements.py --output snapshot.json    tải thông báo từ api.nthusa.tw
+  2. tools/upload_snapshot.py snapshot.json                gửi file lên PythonAnywhere bằng API
+          -> /home/nthuapp/NTHU-app/instance/announcements_snapshot.json
+Web (nthu_api.load_snapshot)
+  đọc cả data/announcements_snapshot.json và instance/announcements_snapshot.json, lấy bản MỚI HƠN (so saved_at)
+```
+
+- `.github/workflows/update-announcements.yml`: lịch chạy (`cron` tính theo giờ UTC) và nút chạy tay (`workflow_dispatch`).
+- `tools/upload_snapshot.py`: POST file tới `https://www.pythonanywhere.com/api/v0/user/<tên>/files/path<đường dẫn>`
+  với header `Authorization: Token <API token>`. Trả mã 0 nếu thành công (HTTP 200/201), 1 nếu lỗi.
+- Token nằm trong **GitHub Secrets** (`PA_USERNAME`, `PA_TOKEN`), không nằm trong code, không bao giờ in ra log.
+- File được ghi vào `instance/` vì thư mục này **không có trong git** (`.gitignore`): `git pull` trên PythonAnywhere
+  không bao giờ bị lỗi "local changes would be overwritten".
+- Web đọc lại bản lưu mỗi 5 phút (`CACHE_SECONDS`), nên không cần bấm Reload.
+- `save_announcements.py` ghi giờ lưu theo **giờ Đài Loan** (`TAIWAN_TZ`), vì máy của GitHub chạy giờ UTC.
+
+**Lưu ý:** với repo công khai, GitHub tự tắt lịch chạy nếu repo không có commit nào trong 60 ngày.
+Khi đó vào tab Actions bấm bật lại (Enable workflow).
+
 ---
 
 ## Câu hỏi TA có thể hỏi
@@ -147,5 +176,7 @@ các dòng ngăn bằng đường kẻ mảnh:
 3. **Test thế nào khi phải chờ 15 phút?** Trong test, `monkeypatch` thay `time.time` bằng một hàm trả về
    thời điểm 15 phút sau (`tests/test_login_guard.py`).
 4. **Sao "hôm nay" không dùng `date.today()`?** Vì đó là ngày của máy server (UTC), không phải Đài Loan.
+6. **Sao không để server tự gọi API?** Gói miễn phí chặn api.nthusa.tw. Máy của GitHub thì gọi được, nên
+   GitHub tải về rồi gửi file sang; web chỉ việc đọc file.
 5. **Macro trong Jinja là gì?** Giống hàm Python: định nghĩa một lần (`{% macro dated_row(item) %}`),
    gọi nhiều lần (`{{ dated_row(item) }}`), để HTML của mỗi dòng chỉ viết ở một chỗ.

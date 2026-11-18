@@ -41,8 +41,12 @@ CACHE_SECONDS = 300  # nhớ kết quả 5 phút để không gọi API liên t�
 PER_PAGE = 20        # số thông báo mỗi trang
 
 # Bản lưu thông báo thật, dùng khi server không gọi được API (ví dụ gói miễn phí của PythonAnywhere chặn
-# api.nthusa.tw). Tạo/cập nhật trên máy có mạng: python tools/save_announcements.py, rồi commit file này.
+# api.nthusa.tw). Có 2 chỗ, web dùng bản nào MỚI HƠN:
+#   data/announcements_snapshot.json      bản lưu tay (python tools/save_announcements.py), có trong git
+#   instance/announcements_snapshot.json  bản GitHub Actions tự tải lên PythonAnywhere mỗi ngày
+#                                         (.github/workflows/update-announcements.yml); không có trong git
 SNAPSHOT_FILE = Path(__file__).parent / "data" / "announcements_snapshot.json"
+LATEST_SNAPSHOT_FILE = Path(__file__).parent / "instance" / "announcements_snapshot.json"
 
 # Bộ nhớ tạm: kết quả lần gần nhất (kể cả khi phải dùng bản lưu) để không gọi API ở mọi request
 _cache = {"time": 0.0, "items": [], "notice": None}
@@ -185,8 +189,25 @@ def make_snapshot(data, now):
 
 
 def load_snapshot(path=None):
-    """(items, saved_at) từ file bản lưu; chưa có file, file hỏng hoặc không có thông báo nào -> (None, None)."""
-    path = Path(path) if path else SNAPSHOT_FILE
+    """(items, saved_at) từ file bản lưu; chưa có file, file hỏng hoặc không có thông báo nào -> (None, None).
+
+    Không truyền path: đọc cả 2 bản lưu (SNAPSHOT_FILE, LATEST_SNAPSHOT_FILE) và lấy bản mới hơn.
+    """
+    if path is None:
+        return newest_snapshot([_read_snapshot(SNAPSHOT_FILE), _read_snapshot(LATEST_SNAPSHOT_FILE)])
+    return _read_snapshot(Path(path))
+
+
+def newest_snapshot(snapshots):
+    """Trong các cặp (items, saved_at), chọn cặp có saved_at lớn nhất ("2026-11-19 06:17" so được như chữ)."""
+    usable = [snap for snap in snapshots if snap[0]]
+    if not usable:
+        return None, None
+    return max(usable, key=lambda snap: snap[1])
+
+
+def _read_snapshot(path):
+    """Đọc một file bản lưu -> (items, saved_at) hoặc (None, None)."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):

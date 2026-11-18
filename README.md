@@ -31,6 +31,11 @@ The SQLite database is created automatically in `instance/app.db`.
 For deployment, set the `SECRET_KEY` environment variable and `PRODUCTION=1`
 (Secure cookies, real client IP behind the PythonAnywhere proxy), and turn on Force HTTPS.
 
+## Automatic announcements update
+GitHub Actions (`.github/workflows/update-announcements.yml`) downloads the announcements twice a day and
+uploads them to PythonAnywhere. Add the repository secrets `PA_USERNAME` and `PA_TOKEN`
+(PythonAnywhere > Account > API token). See `GIAI_THICH_CAITIEN.md`, section 13.
+
 ## Tests
 ```
 pip install pytest

@@ -9,6 +9,10 @@ Chạy trên máy có mạng (máy của bạn):
     git commit -m "Update announcements snapshot"
     git push
 rồi trên PythonAnywhere: cd ~/NTHU-app && git pull  (dữ liệu mới hiện sau tối đa 5 phút, hoặc bấm Reload).
+
+GitHub Actions cũng chạy script này mỗi ngày với --output để ghi ra file khác, rồi
+tools/upload_snapshot.py gửi file đó lên PythonAnywhere (xem .github/workflows/update-announcements.yml).
+    python tools/save_announcements.py --output snapshot.json
 """
 import json
 import sys
@@ -19,10 +23,14 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import nthu_api  # noqa: E402
+from calendar_logic import TAIWAN_TZ  # noqa: E402
 
 
-def main():
-    """Tải, kiểm tra có thông báo dùng được, rồi mới ghi file (lỗi thì giữ nguyên bản lưu cũ)."""
+def main(output=None):
+    """Tải, kiểm tra có thông báo dùng được, rồi mới ghi file (lỗi thì giữ nguyên bản lưu cũ).
+
+    output: nơi ghi file; bỏ trống = data/announcements_snapshot.json.
+    """
     try:
         response = requests.get(f"{nthu_api.BASE_URL}/announcements", timeout=30)
         response.raise_for_status()
@@ -34,13 +42,24 @@ def main():
     if not items:
         print("The API returned no usable announcements. Nothing was changed.")
         return 1
-    snapshot = nthu_api.make_snapshot(data, datetime.now())
-    nthu_api.SNAPSHOT_FILE.parent.mkdir(exist_ok=True)
-    nthu_api.SNAPSHOT_FILE.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+    # Giờ Đài Loan: máy của GitHub chạy giờ UTC, nếu dùng datetime.now() trang web sẽ ghi giờ lưu sai 8 tiếng
+    snapshot = nthu_api.make_snapshot(data, datetime.now(TAIWAN_TZ))
+    path = Path(output) if output else nthu_api.SNAPSHOT_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
     # chỉ in chữ ASCII: cửa sổ PowerShell không bị lỗi vì chữ Hán
-    print(f"Saved {len(items)} announcements to {nthu_api.SNAPSHOT_FILE} at {snapshot['saved_at']}")
+    print(f"Saved {len(items)} announcements to {path} at {snapshot['saved_at']}")
     return 0
 
 
+def output_from_args(args):
+    """["--output", "x.json"] -> "x.json"; không có -> None."""
+    if "--output" in args:
+        index = args.index("--output")
+        if index + 1 < len(args):
+            return args[index + 1]
+    return None
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(output_from_args(sys.argv[1:])))
