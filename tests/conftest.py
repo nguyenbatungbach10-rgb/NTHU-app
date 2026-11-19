@@ -19,6 +19,14 @@ FAKE_ITEMS = [
 
 
 @pytest.fixture(autouse=True)
+def reset_announcement_state(monkeypatch):
+    """Mỗi test bắt đầu sạch: chưa có lần gọi API thất bại nào, chưa nhớ file bản lưu nào."""
+    import nthu_api
+    monkeypatch.setattr(nthu_api, "_api_state", {"failed_at": 0.0})
+    monkeypatch.setattr(nthu_api, "_snapshot_files", {})
+
+
+@pytest.fixture(autouse=True)
 def fake_announcements(monkeypatch):
     """Thay lệnh gọi NTHU Data API bằng dữ liệu giả: test chạy nhanh, không cần mạng."""
     monkeypatch.setattr(app_module, "fetch_announcements", lambda: (FAKE_ITEMS, None))

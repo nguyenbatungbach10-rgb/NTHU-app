@@ -3,6 +3,9 @@
 {% block title %}{{ _('Campus map') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
 {% block head %}
+  {# Mở sẵn kết nối tới nơi có thư viện bản đồ và ảnh bản đồ (đỡ một lượt bắt tay mạng khi bản đồ bắt đầu tải) #}
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
 {% endblock %}
 

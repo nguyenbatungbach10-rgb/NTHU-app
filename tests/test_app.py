@@ -75,6 +75,41 @@ def test_500_page(app, monkeypatch):
 def test_favicon(app):
     client = app.test_client()
     response = client.get("/favicon.ico")
-    assert response.status_code == 301 and response.headers["Location"].endswith("/static/favicon.svg")
+    assert response.status_code == 301 and "/static/favicon.svg?v=" in response.headers["Location"]
     assert client.get("/static/favicon.svg").status_code == 200
     assert 'rel="icon"' in client.get("/").get_data(as_text=True)
+
+
+
+def test_static_files_are_versioned_and_cached_for_a_year(app):
+    """Link tới /static/ có ?v=<thời điểm sửa file>; có ?v thì trình duyệt được nhớ 1 năm, không có thì phải hỏi lại."""
+    import re
+    client = app.test_client()
+    html = client.get("/login").get_data(as_text=True)
+    css = re.search(r'/static/style\.css\?v=(\d+)', html)
+    assert css and re.search(r'/static/app\.js\?v=\d+', html)
+    cached = client.get(css[0])
+    assert cached.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+    assert "immutable" not in client.get("/static/style.css").headers.get("Cache-Control", "")
+    assert "immutable" not in client.get("/").headers.get("Cache-Control", "")      # trang HTML không bị nhớ
+
+
+def test_fonts_do_not_block_rendering(app):
+    html = app.test_client().get("/login").get_data(as_text=True)
+    assert 'media="print" onload="this.media=\'all\'"' in html and "<noscript>" in html
+
+
+def test_warm_caches_runs_without_errors(capsys):
+    import app as app_module
+    app_module.warm_caches()
+    assert "[warm_caches]" not in capsys.readouterr().out
+
+
+def test_speculation_rules_are_valid_json_and_skip_unsafe_links(app):
+    import json
+    html = app.test_client().get("/login").get_data(as_text=True)
+    rules = json.loads(html.split('<script type="speculationrules">')[1].split("</script>")[0])
+    where = rules["prerender"][0]["where"]["and"]
+    excluded = where[1]["not"]["href_matches"]
+    assert "/logout" in excluded and "/calendar/feed/*" in excluded and "/static/*" in excluded
+    assert rules["prerender"][0]["eagerness"] == "moderate"

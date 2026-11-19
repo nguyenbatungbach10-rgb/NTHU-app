@@ -188,3 +188,39 @@ def test_save_script_keeps_old_file_on_error(fresh, monkeypatch):
     monkeypatch.setattr(save_announcements.requests, "get", lambda *a, **k: FakeResponse([]))
     assert save_announcements.main() == 1
     assert fresh.read_text(encoding="utf-8") == before
+
+
+def test_failed_api_is_not_retried_for_an_hour(fresh, monkeypatch):
+    calls = []
+
+    def counting_fail(*args, **kwargs):
+        calls.append(kwargs.get("timeout"))
+        raise requests.ConnectionError("blocked")
+    write_snapshot(fresh)
+    monkeypatch.setattr(nthu_api.requests, "get", counting_fail)
+    clock = [1_000_000.0]
+    monkeypatch.setattr(nthu_api.time, "time", lambda: clock[0])
+    nthu_api.fetch_announcements()
+    assert calls == [nthu_api.API_TIMEOUT]                    # chờ ngắn (3 s kết nối), không phải 15 s
+    clock[0] += nthu_api.CACHE_SECONDS + 1                    # bộ nhớ tạm hết hạn...
+    items, notice = nthu_api.fetch_announcements()
+    assert len(calls) == 1 and notice["kind"] == "snapshot"   # ...nhưng chưa tới 1 tiếng: không gọi API lại
+    clock[0] += nthu_api.API_RETRY_SECONDS
+    nthu_api.fetch_announcements()
+    assert len(calls) == 2                                    # sau 1 tiếng mới thử lại
+
+
+def test_snapshot_file_is_parsed_once_until_it_changes(fresh, monkeypatch):
+    write_snapshot(fresh)
+    parsed = []
+    original = nthu_api._parse_snapshot
+    monkeypatch.setattr(nthu_api, "_parse_snapshot", lambda path: parsed.append(path) or original(path))
+    first, _ = nthu_api.load_snapshot(fresh)
+    second, _ = nthu_api.load_snapshot(fresh)
+    assert len(parsed) == 1 and first is second               # cùng một danh sách -> kết quả tính sẵn vẫn dùng được
+    write_snapshot(fresh, [{"department": "X", "language": "en",
+                            "articles": [{"title": "Brand new notice", "link": "x", "date": "2026-11-19"}]}])
+    import os
+    os.utime(fresh, ns=(fresh.stat().st_atime_ns, fresh.stat().st_mtime_ns + 1_000_000))
+    third, _ = nthu_api.load_snapshot(fresh)
+    assert len(parsed) == 2 and third[0]["title"] == "Brand new notice"

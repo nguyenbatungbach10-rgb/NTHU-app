@@ -249,6 +249,39 @@ def translate_api_errors(response):
     return response
 
 
+# ======================= Tốc độ: cho trình duyệt nhớ file tĩnh (CSS, JS, icon) =======================
+# Mỗi link tới /static/ được gắn thêm ?v=<thời điểm sửa file>, ví dụ /static/style.css?v=1795026600.
+# Vì link đổi mỗi khi file đổi, trình duyệt được phép nhớ file 1 năm mà không hỏi lại server
+# (trước đây mỗi trang đều hỏi lại style.css và app.js: thêm một lượt đi về ~230 ms trước khi trang hiện).
+STATIC_MAX_AGE = 365 * 24 * 3600
+
+
+@lru_cache(maxsize=256)
+def static_version(filename):
+    """Số phiên bản của một file tĩnh = thời điểm sửa file (đổi khi deploy bản mới)."""
+    try:
+        return str(int(os.path.getmtime(os.path.join(app.static_folder, filename))))
+    except OSError:
+        return "0"
+
+
+@app.url_defaults
+def add_static_version(endpoint, values):
+    """url_for('static', filename=...) tự thêm ?v=... (template không cần sửa)."""
+    if endpoint == "static" and "filename" in values and "v" not in values:
+        values["v"] = static_version(values["filename"])
+
+
+def cache_static(response):
+    """File tĩnh có ?v=...: cho nhớ 1 năm, "immutable" = không cần hỏi lại kể cả khi bấm tải lại trang."""
+    if request.endpoint == "static" and request.args.get("v") and response.status_code in (200, 304):
+        response.cache_control.no_cache = None
+        response.cache_control.public = True
+        response.cache_control.max_age = STATIC_MAX_AGE
+        response.cache_control.immutable = True
+    return response
+
+
 # Header bảo mật gắn vào MỌI trang:
 #   X-Frame-Options / frame-ancestors: trang lạ không được nhúng web mình vào <iframe> (chống clickjacking:
 #       nhúng ẩn rồi lừa người dùng bấm nút "Delete" của mình)
@@ -265,6 +298,7 @@ SECURITY_HEADERS = {
 @app.after_request
 def add_security_headers(response):
     """Gắn SECURITY_HEADERS; trên server thật (HTTPS) thêm HSTS: trình duyệt nhớ luôn dùng HTTPS 1 năm."""
+    cache_static(response)
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
     if PRODUCTION and request.is_secure:
@@ -1192,6 +1226,26 @@ def notifications_page():
 def offline_page():
     """Trang hiện khi mất mạng (service worker lưu sẵn trang này)."""
     return render_template("offline.html")
+
+
+# ======================= Làm nóng khi khởi động =======================
+
+def warm_caches():
+    """Chuẩn bị sẵn những thứ tốn thời gian để NGƯỜI ĐẦU TIÊN vào web không phải chờ:
+    đọc bản lưu thông báo, tính ngày trong tiêu đề, đọc dữ liệu bản đồ, dịch sẵn các template Jinja.
+    Lỗi ở đây chỉ in ra log, không bao giờ làm web không chạy được."""
+    try:
+        items, _notice = fetch_announcements()
+        upcoming_dates(items, today_tw(), DEADLINE_DAYS)
+        campus_places()
+        for name in app.jinja_env.list_templates(extensions=["html"]):
+            app.jinja_env.get_template(name)
+    except Exception as error:                          # noqa: BLE001 - làm nóng không được thì thôi
+        print("[warm_caches]", error)
+
+
+if PRODUCTION:          # chỉ trên server thật; khi chạy test hay chạy thử trên máy thì không cần
+    warm_caches()
 
 
 if __name__ == "__main__":

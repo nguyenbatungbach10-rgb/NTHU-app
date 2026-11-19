@@ -71,6 +71,12 @@ Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in tem
 PWA: /manifest.webmanifest (pwa.py, translated), /sw.js (static/sw.js + CACHE_VERSION/OFFLINE_FILES from pwa.py;
    only serves /offline when the network fails, never caches personal pages), icons in static/icons/.
 Themes: light / dark / auto (cookie "theme", <html data-theme>, CSS light-dark() tokens). POST /settings saves both.
+Speed (see GIAI_THICH_TOCDO.md): snapshot parsed once per file mtime (nthu_api._read_snapshot, same list object so
+   upcoming_dates memo stays valid), failed API retried after API_RETRY_SECONDS (1 h) with API_TIMEOUT (3, 10),
+   classify uses one combined regex per category, app.warm_caches() on start when PRODUCTION=1.
+   Static URLs get ?v=<mtime> (app.add_static_version) and are cached 1 year immutable (cache_static).
+   Google Fonts loaded non-blocking (media=print onload). Speculation rules prerender same-site links on hover/touch
+   (excludes /logout, /calendar/feed/*, /static/*). PythonAnywhere already gzips responses.
 
 ## Stack
 Flask, Jinja2 template inheritance + macros, requests, sqlite3 (stdlib, no ORM),
@@ -128,12 +134,13 @@ GIAI_THICH_DEADLINE.md  explanation of reading dates from announcement titles
 GIAI_THICH_GIAODIEN.md  explanation of the year view, month jump, menu, colours, today panel
 GIAI_THICH_MAP.md       explanation of the campus map
 GIAI_THICH_NGONNGU.md   explanation of the two languages and light/dark mode
+GIAI_THICH_TOCDO.md     explanation of the speed work (caches, static versioning, prerender)
 GIAI_THICH_MOBILE.md    explanation of the phone layout / mockup features (tabs, agenda, analytics, sync, bell)
 GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines view, offices, onboarding, lockout)
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error, schedule_import, offline, notifications,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only), sw.js, icons/
-tests/                  pytest (539 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (545 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

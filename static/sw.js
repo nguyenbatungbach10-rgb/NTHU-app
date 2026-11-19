@@ -17,6 +17,12 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode !== "navigate") return;   // chỉ xử lý khi mở một trang
-  event.respondWith(fetch(event.request).catch(() => caches.match("/offline")));
+  const url = new URL(event.request.url);
+  if (event.request.mode === "navigate") {
+    // Mở một trang: lấy từ mạng; mất mạng thì hiện trang /offline đã lưu sẵn
+    event.respondWith(fetch(event.request).catch(() => caches.match("/offline")));
+  } else if (url.origin === location.origin && url.pathname.startsWith("/static/")) {
+    // File tĩnh có thêm ?v=... (xem app.py): mất mạng thì dùng bản đã lưu, bỏ qua phần ?v=
+    event.respondWith(fetch(event.request).catch(() => caches.match(url.pathname, { ignoreSearch: true })));
+  }
 });

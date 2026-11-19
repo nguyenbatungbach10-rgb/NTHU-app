@@ -24,7 +24,11 @@
   <title>{% block title %}{{ _('NTHU Campus Assistant') }}{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+  {# Font Google tải KHÔNG chặn trang: trang hiện ngay bằng font hệ thống, font đẹp thay vào khi tải xong.
+     (media="print" thì trình duyệt không chờ file này; tải xong onload đổi sang "all") #}
+  {% set fonts_url = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" %}
+  <link rel="stylesheet" href="{{ fonts_url }}" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="{{ fonts_url }}"></noscript>
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   {# Cài lên màn hình điện thoại như app (pwa.py): manifest, màu thanh trạng thái, icon cho iPhone #}
   <link rel="manifest" href="{{ url_for('web_manifest') }}">
@@ -155,5 +159,15 @@
   <script>window.I18N = {{ js_i18n | tojson }};</script>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   {% block scripts %}{% endblock %}
+  {# Chuyển trang tức thì (Chrome, Edge, Android): khi bạn rê chuột / chạm vào một link, trình duyệt tải trước
+     trang đó ở chế độ ẩn, nên bấm xong là trang hiện ngay, che được ~230 ms đi về tới server.
+     Chỉ áp dụng cho trang trong web; trừ file lịch, file tĩnh và link mở tab mới. Trình duyệt khác bỏ qua thẻ này. #}
+  <script type="speculationrules">
+  {"prerender": [{"where": {"and": [
+      {"href_matches": "/*"},
+      {"not": {"href_matches": ["/logout", "/calendar/feed/*", "/static/*", "/sw.js", "/manifest.webmanifest", "/favicon.ico"]}},
+      {"not": {"selector_matches": "[target=_blank], [download], [data-no-prefetch]"}}
+    ]}, "eagerness": "moderate"}]}
+  </script>
 </body>
 </html>
