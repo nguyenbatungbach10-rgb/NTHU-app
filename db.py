@@ -112,6 +112,27 @@ CREATE TABLE IF NOT EXISTS calendar_feeds (
     tasks   INTEGER NOT NULL DEFAULT 0
 );
 
+-- Lịch bên ngoài (Google Calendar...) hiện trong app: link .ics bí mật và trạng thái lần tải gần nhất
+CREATE TABLE IF NOT EXISTS calendar_imports (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    url        TEXT NOT NULL DEFAULT '',     -- rỗng = sự kiện đến từ file .ics tải lên
+    fetched_at REAL NOT NULL DEFAULT 0,      -- time.time() lần tải gần nhất
+    error      TEXT NOT NULL DEFAULT ''      -- lỗi lần tải gần nhất (rỗng = thành công)
+);
+
+-- Sự kiện đọc từ lịch bên ngoài (chỉ để xem; mỗi lần tải lại thì thay toàn bộ)
+CREATE TABLE IF NOT EXISTS imported_events (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date     TEXT NOT NULL,
+    time     TEXT NOT NULL DEFAULT '',
+    end_time TEXT NOT NULL DEFAULT '',
+    title    TEXT NOT NULL,
+    location TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_imported_user_date ON imported_events (user_id, date);
+
 -- Các lần đăng nhập sai gần đây (login_guard.py quyết định có khóa hay không)
 CREATE TABLE IF NOT EXISTS login_failures (
     id    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -666,6 +687,59 @@ def delete_feed(user_id):
 def list_open_tasks_with_due(user_id):
     """Mọi việc CHƯA XONG có hạn nộp (cho file lịch)."""
     return list_tasks_due(user_id, "0000-01-01", "9999-12-31")
+
+
+# ======================= lịch bên ngoài hiện trong app =======================
+
+def get_import(user_id):
+    """Cài đặt lịch bên ngoài của user_id (url, fetched_at, error) hoặc None nếu chưa kết nối."""
+    row = get_db().execute("SELECT url, fetched_at, error FROM calendar_imports WHERE user_id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def save_import(user_id, url):
+    """Kết nối (hoặc đổi) link lịch; fetched_at = 0 để lần mở Calendar tới sẽ tải ngay."""
+    conn = get_db()
+    conn.execute("INSERT INTO calendar_imports (user_id, url, fetched_at, error) VALUES (?, ?, 0, '') "
+                 "ON CONFLICT(user_id) DO UPDATE SET url = excluded.url, fetched_at = 0, error = ''", (user_id, url))
+    conn.commit()
+
+
+def set_import_status(user_id, fetched_at, error):
+    """Ghi kết quả lần tải gần nhất."""
+    conn = get_db()
+    conn.execute("UPDATE calendar_imports SET fetched_at = ?, error = ? WHERE user_id = ?", (fetched_at, error, user_id))
+    conn.commit()
+
+
+def replace_imported_events(user_id, events):
+    """Thay TOÀN BỘ sự kiện đã đọc của user_id bằng danh sách mới (trong một lần commit)."""
+    conn = get_db()
+    conn.execute("DELETE FROM imported_events WHERE user_id = ?", (user_id,))
+    conn.executemany(
+        "INSERT INTO imported_events (user_id, date, time, end_time, title, location) VALUES (?, ?, ?, ?, ?, ?)",
+        [(user_id, e["date"], e["time"], e["end_time"], e["title"], e["location"]) for e in events])
+    conn.commit()
+
+
+def list_imported_events(user_id, start, end):
+    """Sự kiện đã đọc từ lịch bên ngoài, ngày từ start đến TRƯỚC end, theo ngày rồi giờ."""
+    rows = get_db().execute(
+        "SELECT id, date, time, end_time, title, location FROM imported_events "
+        "WHERE user_id = ? AND date >= ? AND date < ? ORDER BY date, time, id", (user_id, start, end)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def count_imported_events(user_id):
+    return get_db().execute("SELECT COUNT(*) FROM imported_events WHERE user_id = ?", (user_id,)).fetchone()[0]
+
+
+def delete_import(user_id):
+    """Ngắt kết nối: xóa link và mọi sự kiện đã đọc."""
+    conn = get_db()
+    conn.execute("DELETE FROM imported_events WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM calendar_imports WHERE user_id = ?", (user_id,))
+    conn.commit()
 
 
 # ======================= số liệu cho trang chủ =======================

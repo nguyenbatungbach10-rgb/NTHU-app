@@ -61,6 +61,26 @@ So với mockup dùng trong slide pitch, web được sửa ở 7 chỗ. Logic n
 - Số trên chuông = việc trễ hạn + việc tới hạn hôm nay/ngày mai + lớp bắt đầu trong 60 phút + sự kiện hôm nay (chưa qua giờ)
   và ngày mai. Xếp theo mức gấp. Không phải thông báo đẩy (push): chỉ hiện khi bạn mở web.
 
+## 8. Sửa lỗi Android, Google Calendar trong app, vị trí trên bản đồ (update 23)
+- **Không thấy nút Add course (GPA), Add (Study, Schedule), nút năm trước/sau:** lỗi do CSS của mình, không phải do Android.
+  Dòng `.cal-nav .btn:not(.keep) { display: none }` (muốn ẩn nút tháng của trang Calendar trên điện thoại) lại trúng cả
+  thanh nút của GPA/Study/Schedule vì chúng cũng dùng class `cal-nav`. Sửa: chỉ áp dụng cho `.month-nav`. Có test
+  `test_phone_css_only_hides_buttons_on_the_calendar_page`. (iPhone "dùng thoải mái" có lẽ vì màn hình đó rộng hơn hoặc đang xoay ngang.)
+- **Google Calendar hiện ngay trong app** (`ics_import.py`, `/account#calendar-import`):
+  - Dán "Địa chỉ bí mật ở định dạng iCal" của Google Calendar (hoặc tải file .ics lên). Server tải file, Python đọc từng
+    `VEVENT`, mở rộng sự kiện lặp lại (`RRULE` ngày/tuần/tháng/năm, `EXDATE` bỏ ngày, `RECURRENCE-ID` sửa một buổi), đổi
+    múi giờ (`TZID`) sang giờ Đài Loan, lưu vào bảng `imported_events` (30 ngày trước → 180 ngày sau).
+  - Mỗi lần mở Calendar, nếu dữ liệu cũ hơn 30 phút thì tải lại. Sự kiện Google chỉ đọc (nhãn "Google"); muốn sửa thì
+    sửa trong Google Calendar.
+  - **An toàn (SSRF):** server chỉ tải link `https` của calendar.google.com, Outlook, iCloud; không cho cổng lạ, mật khẩu
+    trong link, hay chuyển hướng (redirect) sang host khác; tối đa 3 MB. Trang chỉ hiện tên host, không hiện link bí mật.
+  - PythonAnywhere free chỉ cho ra internet tới các trang trong danh sách cho phép. Nếu không tới được Google, web báo
+    lỗi và gợi ý **tải file .ics lên** (Google Calendar → Settings → Import & export → Export).
+- **Vị trí của tôi trên bản đồ:** nút "My location" dùng định vị của trình duyệt (phải cho phép quyền Vị trí, và chỉ chạy
+  trên https). JS gửi tọa độ bằng POST tới `/api/places/near`; Python (`map_logic.near_me`) tìm chỗ gần nhất của mỗi nhóm
+  (tòa nhà, ăn uống, xe buýt/xe đạp, cửa hàng). Ngoài khuôn viên (> 1,5 km) thì chỉ báo khoảng cách tới trường. Tọa độ
+  không bị lưu và không nằm trong URL.
+
 ## Lỗi phát hiện thêm khi làm
 - Khóa dịch "Next" bị trùng: chip "Next" của trang chủ hiện thành 下個月 (tháng sau). Đổi sang khóa "Up next" và thêm test
   `test_no_duplicate_keys_in_translation_tables` để từ giờ khóa trùng bị báo lỗi ngay.

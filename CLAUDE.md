@@ -65,6 +65,12 @@ Phone layout (<= 720px, see GIAI_THICH_MOBILE.md): bottom tab bar (home_logic.TA
    GPA cards: gpa_logic.goal_status/grades_needed/credits_by_year, target slider. Study analytics:
    study_logic.analytics (daily bars, conic-gradient donut, % vs previous period, streak).
    Calendar sync: ics_export.py, table calendar_feeds (secret token), /calendar/feed/<token>.ics (one-way).
+   Google Calendar shown INSIDE the app (update 23): ics_import.py parses a secret iCal link or an uploaded .ics
+   (RRULE DAILY/WEEKLY/MONTHLY/YEARLY, EXDATE, RECURRENCE-ID, TZID); tables calendar_imports + imported_events;
+   POST /account/calendar-import (connect/sync/upload/disconnect); refresh every 30 min when Calendar opens.
+   Imported events are read-only (negative ids). SSRF guard: https only, hosts calendar.google.com,
+   outlook.office365.com, outlook.live.com, *.icloud.com; redirects re-checked; max 3 MB.
+   Map "My location": MapLibre GeolocateControl + POST /api/places/near (map_logic.near_me); position not stored.
    Notifications bell: home_logic.notifications, /notifications.
 Languages: English + Traditional Chinese (i18n.py ZH dict, {{ _('...') }} in templates, cookie "lang",
    Accept-Language fallback, API errors translated in after_request, JS strings via window.I18N).
@@ -114,6 +120,7 @@ account_logic.py        password rules, session auth tag, remember-me length (pu
 timetable_import.py     parse the timetable copied from 校務資訊系統 (pure Python)
 pwa.py                  web app manifest and offline cache list (pure Python)
 ics_export.py           build the .ics calendar file for Google / Apple Calendar (pure Python)
+ics_import.py           read an .ics file / Google Calendar secret link into events (pure Python)
 i18n.py                 translations (zh-TW), language detection, dates/durations per language (pure Python)
 map_logic.py            load/classify OSM places, search, room -> building, distances (pure Python)
 data/nthu_osm.csv       NTHU places from OpenStreetMap (Overpass API, 2026-11-18)
@@ -122,7 +129,7 @@ tools/save_announcements.py  saves real announcements to data/announcements_snap
 tools/upload_snapshot.py     uploads a snapshot to PythonAnywhere (files API); run by GitHub Actions
 .github/workflows/update-announcements.yml  daily announcements update
 db.py                   SQLite: users, events, courses, goals, subjects, tasks,
-                        study_sessions, classes, login_failures, calendar_feeds tables, all SQL
+                        study_sessions, classes, login_failures, calendar_feeds, calendar_imports, imported_events tables, all SQL
 inspect_api.py          saves a short sample of the real API JSON to api_sample.json
 CALENDAR_API.md         the Calendar API contract (implemented)
 GIAI_THICH.md           explanation of the announcements part (Vietnamese)
@@ -140,7 +147,7 @@ GIAI_THICH_CAITIEN.md   explanation of the post-review fixes (dates, deadlines v
 templates/              base, home, announcements, calendar, calendar_year, schedule, gpa, study, map, login, signup, account, error, schedule_import, offline, notifications,
                         _macros.html (announcement macro), _icons.html (SVG icon macro)
 static/                 style.css (design tokens at the top), app.js, map.js (map page only), sw.js, icons/
-tests/                  pytest (545 tests): logic, auth, CSRF, API, data isolation
+tests/                  pytest (570 tests): logic, auth, CSRF, API, data isolation
 
 ## NTHU Data API (GET https://api.nthusa.tw/announcements)
 Returns a list of DEPARTMENTS. Each has title, link, language ("zh-tw"/"en"),

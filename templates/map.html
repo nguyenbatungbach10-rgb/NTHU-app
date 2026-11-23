@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ _('Campus map') }} - {{ _('NTHU Campus Assistant') }}{% endblock %}
 
@@ -25,12 +26,21 @@
       <button type="button" class="seg-btn" data-mode="2d" aria-pressed="true">2D</button>
       <button type="button" class="seg-btn" data-mode="3d" aria-pressed="false">3D</button>
     </div>
+    <button class="btn small locate-btn" type="button" data-locate>{{ icon('pin') }} {{ _('My location') }}</button>
     {% for c in campuses %}
       <button class="btn small ghost" type="button" data-campus data-lat="{{ c.lat }}" data-lon="{{ c.lon }}"
               title="{{ c.name }}">{{ _(c.label) }}</button>
     {% endfor %}
   </div>
 </div>
+
+{# Hiện sau khi bấm "My location": Python tính chỗ gần nhất (/api/places/near).
+   Đặt TRÊN bản đồ để trên điện thoại bấm xong là thấy ngay. #}
+<section class="near-me" id="near-me" aria-live="polite" hidden>
+  <h2>{{ _('Near you') }}</h2>
+  <p class="near-msg muted"></p>
+  <ul class="map-results"></ul>
+</section>
 
 <div class="map-layout">
   <aside class="map-side">
@@ -85,6 +95,7 @@
          data-places-url="{{ url_for('api_places') }}"
          data-search-url="{{ url_for('api_places_search') }}"
          data-place-url="{{ url_for('api_place', place_id='__id__') }}"
+         data-near-url="{{ url_for('api_places_near') }}"
          {% if campuses %}data-center="{{ campuses[0].lon }},{{ campuses[0].lat }}"{% endif %}
          data-focus="{{ focus.id if focus else '' }}"></div>
     <p class="map-fallback" id="map-fallback" hidden>{{ _('The map could not load. It needs an internet connection and a browser with WebGL. Search and place details still work.') }}</p>

@@ -23,7 +23,8 @@
       <a class="jump-all" href="{{ url_for('calendar_year_page', year=year) }}">{{ _('See all of {year}', year=year) }}</a>
     </div>
   </details>
-  <div class="cal-nav">
+  {# month-nav: trên điện thoại ẩn Prev/Next/Add (đã có dải tuần và nút + tròn), chỉ ở trang này #}
+  <div class="cal-nav month-nav">
     <a class="btn small ghost" href="{{ url_for('calendar_page', month=prev_month) }}" aria-label="{{ _('Previous month') }}">&larr; {{ _('Prev') }}</a>
     {% if not in_this_month %}
       <a class="btn small ghost" href="{{ url_for('calendar_page') }}">{{ _('Today') }}</a>
@@ -34,6 +35,17 @@
     <button class="btn small" type="button" data-add data-date="{{ default_date }}">+ {{ _('Add event') }}</button>
   </div>
 </div>
+
+{% if external %}
+  <p class="import-line {{ 'bad' if external.error }}">
+    {{ _('Showing your Google Calendar') if external.source == 'link' else _('Showing events from your uploaded calendar') }}
+    {% if external.updated %}&middot; {{ _('updated {time}', time=external.updated) }}{% endif %}
+    {% if external.error %}&middot; {{ _(external.error) }}{% endif %}
+    &middot; <a href="{{ url_for('account_page') }}#calendar-import">{{ _('Settings') }}</a>
+  </p>
+{% else %}
+  <p class="import-line"><a href="{{ url_for('account_page') }}#calendar-import">{{ _('Show your Google Calendar here') }}</a></p>
+{% endif %}
 
 {# ===== Điện thoại (giống mockup): dải 7 ngày có chấm màu + mọi thứ của ngày đã chọn. Python tính sẵn
    week (calendar_logic.week_strip), agenda (day_agenda) và summary (agenda_summary). ===== #}
@@ -74,10 +86,12 @@
         <li class="ag k-{{ item.kind }}">
           <span class="ag-time">
             {% if item.kind == 'deadline' %}<b>{{ _('due') }}</b>
-            {% elif item.start %}<b>{{ item.start }}</b>{% if item.end %}<small>{{ item.end }}</small>{% endif %}
+            {% elif item.start %}<b>{{ item.start }}</b>{% if item.end or x.end_time %}<small>{{ item.end or x.end_time }}</small>{% endif %}
             {% else %}<b>{{ _('All day') }}</b>{% endif %}
           </span>
-          {% if item.kind == 'event' %}
+          {% if item.kind == 'event' and x.imported %}
+            <div class="ag-main">
+          {% elif item.kind == 'event' %}
             {# Bấm sự kiện -> hộp thoại sửa (dùng chung với lưới tháng) #}
             <button class="ag-main" type="button" data-event data-id="{{ x.id }}" data-title="{{ x.title }}"
                     data-date="{{ x.date }}" data-time="{{ x.time }}" data-description="{{ x.description }}"
@@ -87,8 +101,8 @@
           {% endif %}
               <strong>{{ item.title }}</strong>
               {% if item.sub %}<small>{% if item.kind == 'class' %}{{ icon('pin') }}{% endif %}{{ item.sub }}</small>{% endif %}
-          {% if item.kind == 'event' %}</button>{% else %}</a>{% endif %}
-          <span class="ag-tag">{{ kind_label[item.kind] }}</span>
+          {% if item.kind == 'event' and x.imported %}</div>{% elif item.kind == 'event' %}</button>{% else %}</a>{% endif %}
+          <span class="ag-tag {{ 'from-google' if x.imported }}">{{ _('Google') if x.imported else kind_label[item.kind] }}</span>
         </li>
       {% endfor %}
     </ul>
@@ -114,6 +128,11 @@
                       aria-label="{{ _('Add event on {date}', date=cell.iso) }}">+</button>
             </div>
             {% for ev in cell.events %}
+              {% if ev.imported %}
+                {# Sự kiện từ Google Calendar: chỉ để xem (sửa trong Google Calendar) #}
+                <span class="pill imported" title="{{ _('From your Google Calendar') }}">
+                  {% if ev.time %}<span class="pill-time">{{ ev.time }}</span>{% endif %}{{ ev.title }}</span>
+              {% else %}
               {# data-* mang dữ liệu sự kiện cho JavaScript; Jinja tự escape nên an toàn #}
               <button class="pill" type="button" data-event
                       data-id="{{ ev.id }}" data-title="{{ ev.title }}" data-date="{{ ev.date }}"
@@ -121,6 +140,7 @@
                       data-url="{{ ev.source_url }}">
                 {% if ev.time %}<span class="pill-time">{{ ev.time }}</span>{% endif %}{{ ev.title }}
               </button>
+              {% endif %}
             {% endfor %}
             {# Hạn nộp của việc cần làm (từ trang Study): chỉ để xem, bấm vào để mở trang Study #}
             {% for t in cell.tasks %}

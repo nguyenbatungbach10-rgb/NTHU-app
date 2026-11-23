@@ -245,3 +245,23 @@ def test_fetch_script_validation_and_query():
     assert f.looks_valid(real)
     assert not f.looks_valid("") and not f.looks_valid(f.HEADER) and not f.looks_valid("<html>error</html>\nx")
     assert 'name~"清華"' in f.QUERY and "out center" in f.QUERY
+
+
+# ---------- vị trí của người dùng ----------
+
+def test_valid_position():
+    assert m.valid_position("24.79", 120.99) == (24.79, 120.99)
+    for lat, lon in [(None, 1), ("abc", 1), (91, 0), (0, 181), (float("nan"), 0)]:
+        assert m.valid_position(lat, lon) is None
+
+
+def test_near_me_on_and_off_campus():
+    places, _ = m.load_places()
+    delta = next(p for p in places if p["name"] == "台達館")
+    result = m.near_me(delta["lat"], delta["lon"], places)
+    assert result["on_campus"] and result["items"]
+    assert result["items"][0]["place"]["name"] == "台達館" and result["items"][0]["meters"] == 0
+    assert [r["meters"] for r in result["items"]] == sorted(r["meters"] for r in result["items"])
+    assert {r["category"] for r in result["items"]} <= set(m.NEAR_ME_CATEGORIES)
+    far = m.near_me(25.0330, 121.5654, places)               # Taipei 101
+    assert not far["on_campus"] and far["items"] == [] and 60000 < far["campus_m"] < 80000

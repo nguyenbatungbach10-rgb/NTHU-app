@@ -144,3 +144,13 @@ def test_home_today_panel_hides_other_users_data(browser, make_browser):
     other.signup("b@example.com")
     html = _get(other, "/")
     assert "Secret class" not in html and "Secret task" not in html
+
+
+def test_phone_css_only_hides_buttons_on_the_calendar_page(browser):
+    """Lỗi cũ: CSS điện thoại ẩn MỌI nút trong .cal-nav, nên mất "+ Add course" (GPA), "+ Add class", "+ Add task"."""
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / "static" / "style.css").read_text(encoding="utf-8")
+    assert ".cal-nav .btn:not(.keep) { display: none" not in css and ".month-nav .btn:not(.keep)" in css
+    assert 'class="cal-nav month-nav"' in _get(browser, "/calendar")
+    for url in ("/gpa", "/study", "/schedule", "/calendar/year"):
+        assert "month-nav" not in _get(browser, url), url

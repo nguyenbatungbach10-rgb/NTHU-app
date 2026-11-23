@@ -81,3 +81,20 @@ def test_home_links_todays_class_to_map(browser):
 
 def test_menu_has_map(make_browser):
     assert 'href="/map"' in make_browser().client.get("/").get_data(as_text=True)
+
+
+def test_near_me_api(make_browser):
+    b = make_browser()
+    ok = b.api("POST", "/api/places/near", {"lat": 24.7953, "lon": 120.9925})
+    data = ok.get_json()
+    assert ok.status_code == 200 and data["on_campus"] and data["items"] and "min walk" in data["items"][0]["text"]
+    far = b.api("POST", "/api/places/near", {"lat": 25.0330, "lon": 121.5654}).get_json()
+    assert not far["on_campus"] and "km from campus" in far["message"]
+    assert b.api("POST", "/api/places/near", {"lat": "x"}).status_code == 400
+    assert b.client.post("/api/places/near", json={"lat": 24.79, "lon": 120.99}).status_code == 400   # thiếu CSRF
+    assert b.client.get("/api/places/near").status_code == 404                     # GET: không có địa điểm tên "near"
+
+
+def test_map_page_has_my_location_button(make_browser):
+    html = make_browser().client.get("/map").get_data(as_text=True)
+    assert "data-locate" in html and 'id="near-me"' in html and "data-near-url" in html

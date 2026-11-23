@@ -54,7 +54,9 @@ def test_analytics_week_and_month():
 
 def test_study_page_shows_charts(browser):
     subject = browser.api("POST", "/api/subjects", {"name": "Calculus"}).get_json()
-    browser.api("POST", "/api/sessions", {"date": "2026-11-18", "minutes": 45, "subject_id": subject["id"]})
+    import app as app_module                                       # ngày hôm nay (test không phụ thuộc ngày chạy)
+    browser.api("POST", "/api/sessions", {"date": app_module.today_tw().isoformat(), "minutes": 45,
+                                          "subject_id": subject["id"]})
     html = browser.client.get("/study").get_data(as_text=True)
     assert 'class="day-bars' in html and "conic-gradient(var(--c1)" in html and "Time by subject" in html
     assert browser.client.get("/study?period=month").status_code == 200

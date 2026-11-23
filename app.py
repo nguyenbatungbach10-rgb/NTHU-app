@@ -16,7 +16,9 @@ import sqlite3
 import time
 from datetime import date, datetime, timedelta
 from functools import lru_cache, wraps
-from urllib.parse import quote
+from urllib.parse import quote, urljoin, urlparse
+
+import requests
 
 from flask import (
     Flask,
@@ -38,6 +40,7 @@ import db
 import home_logic
 import i18n
 import ics_export
+import ics_import
 import login_guard
 import map_logic
 import pwa
@@ -544,7 +547,8 @@ def hide_onboarding():
 def account_page():
     """Trang Account: thông tin, đồng bộ lịch, đổi mật khẩu, xóa tài khoản."""
     feed = db.get_feed(g.user["id"])
-    return render_template("account.html", feed=feed, links=feed_links(feed["token"]) if feed else None)
+    return render_template("account.html", feed=feed, links=feed_links(feed["token"]) if feed else None,
+                           external=import_status(db.get_import(g.user["id"])))
 
 
 def current_password_ok():
@@ -614,6 +618,108 @@ def calendar_sync():
     return redirect(url_for("account_page") + "#calendar-sync")
 
 
+# ======================= Lịch bên ngoài (Google Calendar...) hiện trong app =======================
+
+IMPORT_REFRESH_SECONDS = 30 * 60     # tải lại link lịch tối đa 30 phút một lần (khi mở trang Calendar)
+MAX_ICS_BYTES = 3_000_000            # file lịch lớn hơn 3 MB thì không nhận
+
+
+def download_calendar(url):
+    """Tải file .ics từ link đã kiểm tra -> (chữ, None) hoặc (None, câu báo lỗi tiếng Anh).
+
+    Tự đi theo chuyển hướng (iCloud có chuyển hướng), nhưng chỉ tới máy chủ được phép (ics_import.ALLOWED_HOSTS).
+    """
+    for _attempt in range(4):
+        try:
+            response = requests.get(url, timeout=(3, 10), allow_redirects=False, stream=True,
+                                    headers={"User-Agent": "NTHU-Campus-Assistant"})
+        except requests.RequestException:
+            return None, "This server could not reach that calendar. Upload an .ics file instead."
+        if response.is_redirect:
+            url, error = ics_import.normalize_feed_url(urljoin(url, response.headers.get("Location", "")))
+            if error:
+                return None, error
+            continue
+        if response.status_code != 200:
+            return None, "The calendar link did not work. Check that you copied the secret address in iCal format."
+        body = response.raw.read(MAX_ICS_BYTES + 1, decode_content=True)
+        if len(body) > MAX_ICS_BYTES:
+            return None, "That calendar is too big (over 3 MB)."
+        text = body.decode("utf-8", errors="replace")
+        if not ics_import.looks_like_calendar(text):
+            return None, "That link is not a calendar (.ics) file."
+        return text, None
+    return None, "The calendar link did not work. Check that you copied the secret address in iCal format."
+
+
+def refresh_external_calendar(uid, force=False):
+    """Tải lại lịch bên ngoài nếu đã quá 30 phút (hoặc force). Lỗi thì giữ sự kiện cũ và ghi lỗi lại.
+    Trả về cài đặt hiện tại (dict) hoặc None nếu chưa kết nối."""
+    current = db.get_import(uid)
+    if not current or not current["url"]:
+        return current
+    if not force and time.time() - current["fetched_at"] < IMPORT_REFRESH_SECONDS:
+        return current
+    text, error = download_calendar(current["url"])
+    if text is not None:
+        db.replace_imported_events(uid, ics_import.parse_calendar(text, today_tw()))
+    db.set_import_status(uid, time.time(), error or "")     # lỗi cũng ghi giờ, để 30 phút sau mới thử lại
+    return db.get_import(uid)
+
+
+def with_external_events(uid, events, start, end):
+    """Thêm sự kiện của lịch bên ngoài vào danh sách sự kiện (chỉ để xem: imported=True, id âm)."""
+    extra = [{"id": -row["id"], "title": row["title"], "date": row["date"], "time": row["time"],
+              "end_time": row["end_time"], "description": row["location"], "source_url": "", "imported": True}
+             for row in db.list_imported_events(uid, start, end)]
+    return sorted(events + extra, key=lambda e: (e["date"], e["time"], e["id"]))
+
+
+def import_status(current):
+    """Thông tin hiển thị: đã kết nối chưa, nguồn (link hay file), cập nhật lúc nào, có lỗi không."""
+    if not current:
+        return None
+    updated = (datetime.fromtimestamp(current["fetched_at"], TAIWAN_TZ).strftime("%Y-%m-%d %H:%M")
+               if current["fetched_at"] else "")
+    return {"source": "link" if current["url"] else "file", "updated": updated, "error": current["error"],
+            "count": db.count_imported_events(g.user["id"]),
+            "host": urlparse(current["url"]).hostname or ""}      # chỉ tên máy chủ, không hiện link bí mật
+
+
+@app.route("/account/calendar-import", methods=["POST"])
+@login_required
+def calendar_import():
+    """Kết nối link lịch (connect), tải lại ngay (sync), tải file .ics lên (upload) hoặc ngắt kết nối (disconnect)."""
+    uid, action = g.user["id"], request.form.get("action")
+    if action == "disconnect":
+        db.delete_import(uid)
+        flash("Disconnected. Events from that calendar were removed from this app.")
+    elif action == "upload":
+        upload = request.files.get("ics_file")
+        text = upload.read(MAX_ICS_BYTES + 1).decode("utf-8", errors="replace") if upload else ""
+        if len(text.encode("utf-8", errors="ignore")) > MAX_ICS_BYTES or not ics_import.looks_like_calendar(text):
+            flash("That file is not a calendar (.ics) file.", "error")
+        else:
+            events = ics_import.parse_calendar(text, today_tw())
+            db.save_import(uid, "")
+            db.replace_imported_events(uid, events)
+            db.set_import_status(uid, time.time(), "")
+            flash(_("Added {n} events from the file.", n=len(events)))
+    else:
+        if action == "connect":
+            url, error = ics_import.normalize_feed_url(request.form.get("url", ""))
+            if error:
+                flash(error, "error")
+                return redirect(url_for("account_page") + "#calendar-import")
+            db.save_import(uid, url)
+        current = refresh_external_calendar(uid, force=True)
+        if current and current["error"]:
+            flash(current["error"], "error")
+        elif current:
+            flash(_("Calendar synced: {n} events.", n=db.count_imported_events(uid)))
+    return redirect(url_for("account_page") + "#calendar-import")
+
+
 @app.route("/calendar/feed/<token>.ics")
 def calendar_feed(token):
     """File lịch cho Google / Apple Calendar. Không cần đăng nhập: link bí mật chính là chìa khóa."""
@@ -659,13 +765,14 @@ def calendar_page():
         year, month = parse_month(request.args.get("month")) or (today.year, today.month)
         day = today if (year, month) == (today.year, today.month) else date(year, month, 1)
     start, end = month_bounds(year, month)
-    events = db.list_events(g.user["id"], start, end)
+    external = refresh_external_calendar(g.user["id"])          # lịch Google... (tải lại mỗi 30 phút)
+    events = with_external_events(g.user["id"], db.list_events(g.user["id"], start, end), start, end)
     tasks = db.list_tasks_due(g.user["id"], start, end)
 
     # Tuần chứa ngày đã chọn (có thể tràn sang tháng trước/sau nên lấy riêng)
     first = week_start(day)
     week_from, week_to = first.isoformat(), (first + timedelta(days=7)).isoformat()
-    week_events = db.list_events(g.user["id"], week_from, week_to)
+    week_events = with_external_events(g.user["id"], db.list_events(g.user["id"], week_from, week_to), week_from, week_to)
     week_tasks = db.list_tasks_due(g.user["id"], week_from, week_to)
     classes = db.list_classes(g.user["id"])
     agenda = day_agenda(day, classes, week_events, week_tasks)
@@ -695,6 +802,7 @@ def calendar_page():
         agenda=agenda,
         summary=agenda_summary(agenda),
         prev_week=(day - timedelta(days=7)).isoformat(),
+        external=import_status(external),
         next_week=(day + timedelta(days=7)).isoformat(),
     )
 
@@ -1138,6 +1246,26 @@ def api_places_search():
     """Tìm địa điểm: ?q=delta, ?q=台達, ?q=綜三 B101."""
     q = request.args.get("q", "")[:100]
     return jsonify(map_logic.search(q, campus_places()[0]))
+
+
+@app.route("/api/places/near", methods=["POST"])
+def api_places_near():
+    """Chỗ gần vị trí của người dùng nhất (map_logic.near_me). Body JSON {"lat", "lon"}.
+
+    Dùng POST để tọa độ không nằm trên URL (URL được ghi vào log của server). Server không lưu vị trí.
+    """
+    data = request.get_json(silent=True) or {}
+    position = map_logic.valid_position(data.get("lat"), data.get("lon"))
+    if position is None:
+        return jsonify({"error": "lat and lon must be valid coordinates"}), 400
+    result = map_logic.near_me(*position, campus_places()[0])
+    rows = [{"id": r["place"]["id"], "name": r["place"]["name"], "color": r["place"]["color"],
+             "text": _("{label}: {name}, {meters} m (about {minutes} min walk)", label=_(map_logic.CATEGORY_LABELS[r["category"]]),
+                       name=r["place"]["name"], meters=r["meters"], minutes=r["minutes"])}
+            for r in result["items"]]
+    message = (_("You are near campus. Closest places:") if result["on_campus"]
+               else _("You are about {km} km from campus.", km=f"{result['campus_m'] / 1000:.1f}"))
+    return jsonify({"on_campus": result["on_campus"], "message": message, "items": rows})
 
 
 @app.route("/api/places/<place_id>")

@@ -149,6 +149,55 @@
   }
   document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
+  // ---------- "My location": vị trí người dùng + chỗ gần nhất (Python tính) ----------
+  let geolocate = null;
+  const nearBox = document.getElementById("near-me");
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  let lastNear = 0;
+
+  function showNearMessage(text, rows) {
+    nearBox.hidden = false;
+    nearBox.querySelector(".near-msg").textContent = text;
+    nearBox.querySelector("ul").replaceChildren(...(rows || []).map((r) => {
+      const item = resultItem({ id: r.id, name: r.text, color: r.color });
+      return item;
+    }));
+  }
+
+  async function showNearMe(coords) {
+    if (Date.now() - lastNear < 15000) return;   // đang đi bộ: 15 giây mới hỏi lại server một lần
+    lastNear = Date.now();
+    try {
+      const response = await fetch(box.dataset.nearUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+        body: JSON.stringify({ lat: coords.latitude, lon: coords.longitude }),
+      });
+      const data = await response.json();
+      showNearMessage(data.message || data.error, data.items);
+    } catch {
+      showNearMessage(t("Could not load places near you."));
+    }
+  }
+
+  function locateError(error) {
+    // code 1 = người dùng (hoặc điện thoại) không cho phép lấy vị trí
+    showNearMessage(t(error && error.code === 1
+      ? "Location is blocked. Allow location for this site in your browser settings, then try again."
+      : "Could not find your location. Turn on location (GPS) and try again."));
+  }
+
+  document.querySelector("[data-locate]")?.addEventListener("click", () => {
+    lastNear = 0;
+    if (!navigator.geolocation) { locateError(); return; }
+    if (ready && geolocate) {
+      geolocate.trigger();           // bản đồ hiện chấm xanh vị trí của bạn và đi theo bạn
+    } else {
+      navigator.geolocation.getCurrentPosition((pos) => showNearMe(pos.coords), locateError,
+        { enableHighAccuracy: true, timeout: 15000 });
+    }
+  });
+
   // ---------- tạo bản đồ ----------
   function showFallback() {
     document.getElementById("map-fallback").hidden = false;
@@ -169,7 +218,10 @@
     return;
   }
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-  map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), "top-right");
+  geolocate = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true });
+  map.addControl(geolocate, "top-right");
+  geolocate.on("geolocate", (event) => showNearMe(event.coords));
+  geolocate.on("error", (event) => locateError(event));
   map.addControl(new maplibregl.ScaleControl(), "bottom-left");
   map.on("error", () => { if (!ready && !map.isStyleLoaded()) showFallback(); });
 

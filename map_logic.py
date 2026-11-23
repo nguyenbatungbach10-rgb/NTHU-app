@@ -322,6 +322,43 @@ def nearest(place, places, category, limit=1):
     return rows[:limit]
 
 
+# ---------- vị trí của người dùng ("My location") ----------
+
+NEAR_ME_CATEGORIES = ("academic", "food", "transport", "services")   # mỗi nhóm lấy chỗ gần nhất
+ON_CAMPUS_M = 1500            # cách tâm cơ sở chính dưới 1,5 km: coi là đang ở trong / sát trường
+
+
+def valid_position(lat, lon):
+    """Tọa độ hợp lệ (số, trong khoảng của Trái Đất) -> (lat, lon) kiểu float; sai -> None."""
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180) or lat != lat or lon != lon:   # lat != lat: NaN
+        return None
+    return lat, lon
+
+
+def near_me(lat, lon, places):
+    """Chỗ gần vị trí (lat, lon) nhất trong từng nhóm NEAR_ME_CATEGORIES, gần nhất trước.
+
+    Trả về {"on_campus", "campus_m", "items": [{place, category, meters, minutes}]}.
+    Ở xa trường (> ON_CAMPUS_M) thì items rỗng: chỉ báo khoảng cách tới trường.
+    """
+    campus_m = round(distance_m(lat, lon, *MAIN_CAMPUS))
+    if campus_m > ON_CAMPUS_M:
+        return {"on_campus": False, "campus_m": campus_m, "items": []}
+    items = []
+    for category in NEAR_ME_CATEGORIES:
+        best = min((p for p in places if p["category"] == category),
+                   key=lambda p: distance_m(lat, lon, p["lat"], p["lon"]), default=None)
+        if best is not None:
+            meters = round(distance_m(lat, lon, best["lat"], best["lon"]) * DETOUR)
+            items.append({"place": best, "category": category, "meters": meters, "minutes": walk_minutes(meters)})
+    items.sort(key=lambda row: row["meters"])
+    return {"on_campus": True, "campus_m": campus_m, "items": items}
+
+
 def details(place, places):
     """Thông tin cho khung chi tiết: nhóm, chỗ ăn / trạm xe / cửa hàng gần nhất, link chỉ đường."""
     near = {}

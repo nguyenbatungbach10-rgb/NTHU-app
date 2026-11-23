@@ -11,7 +11,7 @@
 
   {# Đồng bộ lịch (.ics): link bí mật cho Google / Apple Calendar. Python tạo file trong ics_export.py #}
   <section class="form-card sync" id="calendar-sync">
-    <h2>{{ _('Calendar sync') }}</h2>
+    <h2>{{ _('Send this calendar to your phone') }}</h2>
     <p class="form-note">{{ _('Keep your schedule in the calendar app you already use. Your phone gets updates automatically (one-way: changes made here appear there).') }}</p>
     <form method="post" action="{{ url_for('calendar_sync') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -50,6 +50,51 @@
       <p class="form-note">{{ _('Anyone with this link can see these items, so keep it private. "New link" stops the old one.') }}
         {{ _('Google Calendar checks the link a few times a day, so changes can take a few hours to appear.') }}</p>
     {% endif %}
+  </section>
+
+  {# Lịch bên ngoài HIỆN TRONG app: Python tải và đọc file .ics (ics_import.py), không cần mở app khác #}
+  <section class="form-card sync" id="calendar-import">
+    <h2>{{ _('Show Google Calendar here') }}</h2>
+    <p class="form-note">{{ _('Your Google Calendar events appear on the Calendar page of this app, next to your classes and deadlines. They are read-only here; change them in Google Calendar.') }}</p>
+    {% if external %}
+      <p class="import-status {{ 'bad' if external.error }}">
+        {% if external.source == 'link' %}{{ _('Connected to {host}', host=external.host) }}{% else %}{{ _('Events from an uploaded file') }}{% endif %}
+        &middot; {{ _('{n} events', n=external.count) }}
+        {% if external.updated %}&middot; {{ _('updated {time}', time=external.updated) }}{% endif %}
+        {% if external.error %}<br>{{ _(external.error) }}{% endif %}
+      </p>
+      <form method="post" action="{{ url_for('calendar_import') }}" class="sync-actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if external.source == 'link' %}<button class="btn small" type="submit" name="action" value="sync">{{ _('Sync now') }}</button>{% endif %}
+        <button class="btn small ghost" type="submit" name="action" value="disconnect">{{ _('Disconnect') }}</button>
+      </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('calendar_import') }}" class="import-link">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="setting-name" for="import-url">{{ _('Secret address in iCal format') }}</label>
+      <div class="copy-row">
+        <input id="import-url" name="url" type="url" inputmode="url" autocomplete="off" required
+               placeholder="https://calendar.google.com/calendar/ical/.../basic.ics">
+        <button class="btn small" type="submit" name="action" value="connect">{{ _('Connect') }}</button>
+      </div>
+    </form>
+    <details class="how-to">
+      <summary>{{ _('Where do I find this link?') }}</summary>
+      <ol>
+        <li>{{ _('Open calendar.google.com in a browser (on the phone, choose "Desktop site").') }}</li>
+        <li>{{ _('Settings → click your calendar on the left → "Integrate calendar".') }}</li>
+        <li>{{ _('Copy "Secret address in iCal format" and paste it above.') }}</li>
+      </ol>
+      <p class="form-note">{{ _('iCloud and Outlook links work too. Keep the link private: anyone with it can read that calendar.') }}</p>
+    </details>
+    <form method="post" action="{{ url_for('calendar_import') }}" enctype="multipart/form-data" class="import-file">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="setting-name" for="ics-file">{{ _('Or upload an .ics file') }}</label>
+      <div class="copy-row">
+        <input id="ics-file" name="ics_file" type="file" accept=".ics,text/calendar" required>
+        <button class="btn small ghost" type="submit" name="action" value="upload">{{ _('Upload') }}</button>
+      </div>
+    </form>
   </section>
 
   {# Đổi mật khẩu: phải nhập mật khẩu hiện tại (người mượn máy đang mở sẵn web cũng không đổi được) #}

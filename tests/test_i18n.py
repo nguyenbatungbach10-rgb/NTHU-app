@@ -45,6 +45,12 @@ DYNAMIC_KEYS = {
     "Your account and all your data have been deleted.", "Tick the box to confirm that you want to delete your account.",
     "Your password has been changed. Other devices have been logged out.", "Your current password is wrong.",
     "Calendar sync is off. The old link no longer works.", "Calendar sync settings saved.",
+    "Disconnected. Events from that calendar were removed from this app.", "That file is not a calendar (.ics) file.",
+    "That link is too long.", "Paste a link that starts with https:// or webcal://.",
+    "Only Google Calendar, iCloud and Outlook calendar links are supported.",
+    "This server could not reach that calendar. Upload an .ics file instead.",
+    "The calendar link did not work. Check that you copied the secret address in iCal format.",
+    "That calendar is too big (over 3 MB).", "That link is not a calendar (.ics) file.",
     "You have a new calendar link. Add it again in your calendar app.",
     "{label}: {name}, {meters} m (about {minutes} min walk)", "Walking directions in Google Maps", "{n} floors",
 } | {label for _, label, _ in map_logic.CATEGORIES} | {label for _, label, _ in home_logic.STEPS}
